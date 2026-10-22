@@ -31,7 +31,7 @@ const STATUS = {
 const COOLDOWN_CHAT = 5000
 
 // informasi pengambilan buku (ubah di sini jika lokasi berpindah)
-const LOKASI = 'Perpustakaan SMAN 03, di samping Kelas 10.5 | X.5'
+const LOKASI = 'Perpustakaan SMAN 03 JONGGOL, di samping Kelas 10.5'
 const CATATAN = 'Temui penjaga perpustakaan untuk mengambil dan mengembalikan buku.'
 
 
