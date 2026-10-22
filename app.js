@@ -31,7 +31,7 @@ const STATUS = {
 const COOLDOWN_CHAT = 5000
 
 // informasi pengambilan buku (ubah di sini jika lokasi berpindah)
-const LOKASI = 'Perpustakaan SMAN 03 JONGGOL, di samping Kelas 10.5'
+const LOKASI = 'Perpustakaan SMAN 03, di samping Kelas 10.5 | X.5'
 const CATATAN = 'Temui penjaga perpustakaan untuk mengambil dan mengembalikan buku.'
 
 
@@ -893,8 +893,7 @@ function authForm(isRegister) {
   modal(`
     <h2>${isRegister ? 'Daftar akun' : 'Masuk'}</h2>
     <form id="af" data-reg="${isRegister}">
-      ${isRegister ? `<input name="name" placeholder="Nama lengkap" required>
-      <input name="phone" type="tel" placeholder="Nomor HP (08xxxxxxxxxx)" required pattern="([+]62|62|0)8[0-9]{8,12}" title="Contoh: 081234567890">` : ''}
+      ${isRegister ? '<input name="name" placeholder="Nama lengkap" required>' : ''}
       <input name="email" type="email" placeholder="Email" required>
       <input name="password" type="password" minlength="6" placeholder="Kata sandi (min. 6 karakter)" required>
       <button class="btn">${isRegister ? 'Daftar' : 'Masuk'}</button>
@@ -1186,7 +1185,7 @@ document.addEventListener('submit', async e => {
     const isRegister = form.dataset.reg === '1'
 
     const result = isRegister
-      ? await db.auth.signUp({ email: data.email, password: data.password, options: { data: { name: data.name, phone: data.phone } } })
+      ? await db.auth.signUp({ email: data.email, password: data.password, options: { data: { name: data.name } } })
       : await db.auth.signInWithPassword({ email: data.email, password: data.password })
 
     if (result.error) return toast(friendlyError(result.error), true)
