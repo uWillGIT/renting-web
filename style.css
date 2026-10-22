@@ -86,7 +86,7 @@ body {
     padding: 1.5rem;
 }
 
-.view>* {
+.view.anim>* {
     animation: masuk 0.35s both;
 }
 
@@ -280,7 +280,7 @@ button:focus-visible {
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
 }
 
 .ci {
@@ -674,7 +674,7 @@ td .btn {
 .bubble {
     position: fixed;
     right: 1.2rem;
-    bottom: 1.2rem;
+    bottom: 4.6rem;
     z-index: 15;
     width: 3.4rem;
     height: 3.4rem;
@@ -703,7 +703,7 @@ td .btn {
 .chatw {
     position: fixed;
     right: 1.2rem;
-    bottom: 5.6rem;
+    bottom: 8.6rem;
     z-index: 16;
     display: flex;
     flex-direction: column;
@@ -734,6 +734,18 @@ td .btn {
     padding: 0.7rem 1rem;
     background: var(--pri);
     color: var(--onpri);
+}
+
+.chat-head b {
+    margin-right: auto;
+}
+
+.endchat {
+    margin-right: 0.6rem;
+    padding: 0.15rem 0.6rem !important;
+    border: 1px solid currentColor !important;
+    border-radius: 99px;
+    font-size: 0.75rem !important;
 }
 
 .chat-head button {
@@ -877,6 +889,343 @@ td .btn {
 
 .forget:hover {
     color: var(--bad);
+}
+
+
+/* ---------- 8b. SLIDER, SPINNER, OFFLINE, DLL ---------- */
+.stage {
+    position: relative;
+    overflow: hidden;
+    border-radius: 10px;
+    background: var(--soft);
+}
+
+.track {
+    display: flex;
+    transition: transform 0.35s cubic-bezier(0.3, 0.9, 0.3, 1);
+}
+
+.slide {
+    display: grid;
+    flex: 0 0 100%;
+    place-items: center;
+    min-height: 200px;
+    font-size: 4rem;
+}
+
+.slide img {
+    width: 100%;
+    height: auto;
+    max-height: 60vh;
+    object-fit: contain;
+}
+
+.snav {
+    position: absolute;
+    top: 50%;
+    width: 2.2rem;
+    height: 2.2rem;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+    color: #ffffff;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transform: translateY(-50%);
+    transition: background 0.2s, transform 0.15s;
+}
+
+.snav:hover {
+    background: var(--pri);
+}
+
+.snav:active {
+    transform: translateY(-50%) scale(0.9);
+}
+
+.snav.l {
+    left: 0.5rem;
+}
+
+.snav.r {
+    right: 0.5rem;
+}
+
+.count {
+    position: absolute;
+    right: 0.6rem;
+    bottom: 0.5rem;
+    padding: 0.1rem 0.6rem;
+    border-radius: 99px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #ffffff;
+    font-size: 0.75rem;
+}
+
+.spinner {
+    width: 2.6rem;
+    height: 2.6rem;
+    border: 4px solid var(--soft);
+    border-top-color: var(--pri2);
+    border-radius: 50%;
+    animation: putaran 0.8s linear infinite;
+}
+
+@keyframes putaran {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.loadwrap {
+    display: grid;
+    place-items: center;
+    padding: 4rem 0;
+}
+
+.busy {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: grid;
+    place-items: center;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.offline {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    gap: 0.6rem;
+    place-content: center;
+    justify-items: center;
+    padding: 1rem;
+    background: var(--bg);
+    color: var(--ink);
+    text-align: center;
+    visibility: hidden;
+    opacity: 0;
+    transition: 0.3s;
+}
+
+.offline.show {
+    visibility: visible;
+    opacity: 1;
+}
+
+.setting {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--card);
+}
+
+.setting input {
+    width: auto;
+    margin-top: 0.3rem;
+}
+
+.setting small {
+    display: block;
+    color: var(--mut);
+}
+
+.sys {
+    align-self: center;
+    padding: 0.2rem 0.7rem;
+    border-radius: 99px;
+    background: var(--soft);
+    color: var(--mut);
+    font-size: 0.75rem;
+}
+
+.cnew {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 0.7rem;
+    border-top: 1px solid var(--line);
+}
+
+
+/* ---------- 8c. ZOOM, PESAN, SELESAI ---------- */
+.slide {
+    overflow: hidden;
+}
+
+.slide img {
+    transition: transform 0.2s;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.stage.zoomed {
+    cursor: grab;
+    touch-action: none;
+}
+
+.stage.drag {
+    cursor: grabbing;
+}
+
+.stage.drag .slide img {
+    transition: none;
+}
+
+.zoombar {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 2;
+    display: flex;
+    gap: 0.3rem;
+}
+
+.zoombar button {
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0 0.4rem;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #ffffff;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.zoombar button:hover {
+    background: var(--pri);
+}
+
+.s-selesai {
+    background: var(--soft);
+    color: var(--ok);
+}
+
+.pesan {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 1rem;
+}
+
+#plist {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+#plist button {
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+#plist button.on {
+    border-color: var(--pri2);
+    background: var(--soft);
+}
+
+#plist small {
+    display: block;
+    color: var(--mut);
+}
+
+.ppanel {
+    display: flex;
+    flex-direction: column;
+    height: 68vh;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--card);
+}
+
+.phead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    min-height: 3.2rem;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--line);
+}
+
+#pmsgs {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 0;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+#pf {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.7rem;
+    border-top: 1px solid var(--line);
+}
+
+@media (max-width: 700px) {
+    .pesan {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ---------- 8d. PRATINJAU BUKU, LOADING PESAN ---------- */
+.prev-row {
+    display: flex;
+    gap: 0.8rem;
+    align-items: flex-start;
+}
+
+.prev-card {
+    flex: none;
+    width: 120px;
+    cursor: default;
+}
+
+.prev-card:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.prev-card .ci h3 {
+    font-size: 0.8rem;
+}
+
+.prev-slides {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.prev-slides img {
+    height: 80px;
+    width: auto;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+}
+
+#pmsgs .loadwrap {
+    margin: auto 0;
+    padding: 0;
 }
 
 

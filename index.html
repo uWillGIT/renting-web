@@ -19,19 +19,36 @@
     <div id="auth"></div>
   </header>
 
-  <main id="main" class="view"></main>
+  <main id="main" class="view">
+    <div class="loadwrap">
+      <div class="spinner"></div>
+    </div>
+  </main>
   <div id="modal"></div>
   <div id="toasts"></div>
+  <div id="busy" class="busy" hidden>
+    <div class="spinner"></div>
+  </div>
+  <div id="offline" class="offline" role="alert">
+    <div class="spinner"></div>
+    <h2>Anda sedang offline</h2>
+    <p>Periksa koneksi internetmu. Halaman akan kembali otomatis saat online.</p>
+  </div>
 
   <!-- Chat CS: gelembung + jendela kecil -->
   <button id="bubble" class="bubble" data-chat aria-label="Buka chat CS" title="Chat CS" hidden>💬</button>
   <section id="chatw" class="chatw" aria-label="Chat CS">
     <div class="chat-head">
       <b id="ctitle">Chat CS</b>
+      <button id="cend" class="endchat" data-endchat hidden>Akhiri</button>
       <button data-chat aria-label="Tutup chat">✕</button>
     </div>
     <select id="threadsel" aria-label="Pilih percakapan" hidden></select>
     <div id="msgs"></div>
+    <div id="cnew" class="cnew" hidden>
+      <span class="hint">Percakapan telah diakhiri.</span>
+      <button class="btn sm" data-newchat>Mulai percakapan baru</button>
+    </div>
     <form id="cf">
       <label class="attach" title="Kirim gambar">📎
         <input type="file" id="cfile" accept="image/*" hidden>

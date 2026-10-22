@@ -23,6 +23,7 @@ const STATUS = {
   approved: 'Disetujui, ambil di perpustakaan',
   dipinjam: 'Sedang dipinjam',
   dikembalikan: 'Dikembalikan',
+  selesai: 'Selesai',
   ditolak: 'Ditolak',
   dibatalkan: 'Dibatalkan'
 }
@@ -43,8 +44,18 @@ const S = {
   f: '',
   thread: null,    // admin: id user yang sedang dibuka chat-nya
   lastSend: 0,
-  chatOpen: false
+  chatOpen: false,
+  set: { multi_book: false, multi_rent: false },  // pengaturan admin
+  chats: [],       // percakapan peminjaman (halaman Pesan)
+  cmsgs: [],
+  chatSel: null,
+  draft: '',
+  pLoad: false,    // true saat chat Pesan sedang dimuat ulang
+  cancel: null,    // data pembatalan yang sedang diproses
+  reopen: false    // user memulai chat baru setelah diakhiri
 }
+
+const SPINNER = '<div class="loadwrap"><div class="spinner"></div></div>'
 
 
 /* ---------- 4. HELPER ---------- */
@@ -76,12 +87,29 @@ function toast(message, isError) {
   setTimeout(() => el.remove(), 3200)
 }
 
+let busyCount = 0
+
+function busy(delta) {
+  busyCount += delta
+  $('#busy').hidden = busyCount <= 0
+}
+
+function friendlyError(error) {
+  if (error.code === '23505') return 'Kamu sudah booking atau meminjam buku ini'
+  if (/not confirmed/i.test(error.message)) return 'Email belum diverifikasi. Cek kotak masuk emailmu.'
+  return error.message
+}
+
 async function run(promise, successMessage) {
+  busy(1)
   const { error } = await promise
+  busy(-1)
+
   if (error) {
-    toast(error.message, true)
+    toast(friendlyError(error), true)
     return false
   }
+
   if (successMessage) toast(successMessage)
   return true
 }
@@ -207,9 +235,13 @@ async function forgetAccount(id) {
 
 
 /* ---------- 6. AMBIL DATA ---------- */
-async function loadData() {
+async function loadData(animate) {
   const books = await db.from('books').select('*').order('created_at', { ascending: false })
   S.books = books.data || []
+
+  const settings = await db.from('settings').select('*')
+  S.set = { multi_book: false, multi_rent: false }
+    ; (settings.data || []).forEach(row => { S.set[row.key] = row.value })
 
   S.mine = []
   S.all = []
@@ -231,7 +263,7 @@ async function loadData() {
     }
   }
 
-  render()
+  render(animate)
 }
 
 async function loadChat() {
@@ -246,14 +278,36 @@ async function loadChat() {
 }
 
 
+async function loadPesan(showSpinner) {
+  if (!S.me) return
+
+  if (showSpinner) {
+    S.pLoad = true
+    if (S.view === 'pesan') drawPesan()
+  }
+
+  const chats = await db.from('loan_chats')
+    .select('*,loans(code,books(title)),profiles(name)')
+    .order('created_at', { ascending: false })
+  const msgs = await db.from('loan_msgs').select('*').order('created_at')
+
+  S.chats = chats.data || []
+  S.cmsgs = msgs.data || []
+  S.pLoad = false
+
+  if (S.view === 'pesan') drawPesan()
+}
+
+
 /* ---------- 7. TAMPILAN ---------- */
-function render() {
+function render(animate) {
   const me = S.me
   const isAdmin = me?.role === 'admin'
 
   const menu = [['katalog', 'Katalog']]
-  if (me) menu.push(['saya', 'Pinjaman saya'])
-  if (isAdmin) menu.push(['admin', 'Kelola peminjaman'])
+  if (me && !isAdmin) menu.push(['saya', 'Pinjaman saya'])
+  if (me) menu.push(['pesan', 'Pesan'])
+  if (isAdmin) menu.push(['admin', 'Kelola peminjaman'], ['pengaturan', 'Pengaturan admin'])
 
   $('#nav').innerHTML = menu
     .map(([key, label]) => `<button class="${S.view === key ? 'on' : ''}" data-v="${key}">${label}</button>`)
@@ -266,11 +320,13 @@ function render() {
        </button>`
     : `<button class="btn" data-accounts>Masuk / Daftar</button>`
 
-  const views = { katalog: viewKatalog, saya: viewSaya, admin: viewAdmin }
+  const views = { katalog: viewKatalog, saya: viewSaya, admin: viewAdmin, pengaturan: viewPengaturan, pesan: viewPesan }
+  $('#main').className = 'view' + (animate ? ' anim' : '')
   $('#main').innerHTML = (views[S.view] || viewKatalog)()
 
   if (S.view === 'katalog') drawGrid()
   if (S.view === 'admin') drawRows()
+  if (S.view === 'pesan') drawPesan()
 
   // gelembung chat hanya untuk yang sudah login
   $('#bubble').hidden = !me
@@ -365,6 +421,106 @@ function viewAdmin() {
     </div>`
 }
 
+function viewPengaturan() {
+  const toggle = (id, title, hint) => `
+    <label class="setting">
+      <input type="checkbox" id="${id}" ${S.set[id] ? 'checked' : ''}>
+      <span>${title}<small>${hint}</small></span>
+    </label>`
+
+  return `
+    <h2 style="margin-bottom:.4rem">Pengaturan admin</h2>
+    <p class="hint" style="margin-bottom:1rem">Berlaku untuk semua user. Jika keduanya mati (default), user hanya bisa meminjam satu buku sampai buku itu dikembalikan.</p>
+    ${toggle('multi_book', 'Booking banyak buku sekaligus', 'Mati: user hanya boleh punya satu booking aktif.')}
+    ${toggle('multi_rent', 'Meminjam banyak buku sekaligus', 'Mati: user hanya boleh meminjam satu buku sampai dikembalikan.')}`
+}
+
+function viewPesan() {
+  return `
+    <div class="pesan">
+      <aside id="plist"></aside>
+      <section class="ppanel">
+        <div class="phead" id="phead"></div>
+        <div id="pmsgs"></div>
+        <div id="pend" class="cnew" hidden>
+          <span class="hint">Percakapan telah diakhiri. Riwayat tetap tersimpan sampai kamu menghapusnya.</span>
+          <button class="btn ghost sm" data-pdel>Hapus dari daftarku</button>
+        </div>
+        <form id="pf" hidden>
+          <input id="pbody" name="body" placeholder="Tulis pesan" maxlength="1000" autocomplete="off">
+          <button class="btn">Kirim</button>
+        </form>
+      </section>
+    </div>`
+}
+
+function drawPesan() {
+  if (!$('#plist')) return
+
+  const isAdmin = S.me.role === 'admin'
+  const chats = S.chats.filter(c => isAdmin ? !c.hidden_admin : !c.hidden_user)
+
+  if (!chats.some(c => c.id === S.chatSel)) S.chatSel = chats[0]?.id || null
+  const cur = chats.find(c => c.id === S.chatSel)
+
+  $('#plist').innerHTML = chats.length
+    ? chats.map(c => `
+        <button class="${c.id === S.chatSel ? 'on' : ''}" data-pchat="${c.id}">
+          <b>${esc(c.loans?.books?.title)}</b>
+          <small>${isAdmin ? esc(c.profiles?.name) : 'Admin perpustakaan'}${c.ended ? ' · berakhir' : ''}</small>
+        </button>`).join('')
+    : '<p class="hint">Belum ada pesan. Chat dibuat otomatis saat admin menyetujui bookingmu.</p>'
+
+  $('#phead').innerHTML = cur
+    ? `<div><b>${esc(cur.loans?.books?.title)}</b> <small class="hint">Kode ${esc(cur.loans?.code)}</small></div>
+       ${isAdmin && !cur.ended ? `<button class="btn danger sm" data-pend="${cur.id}">Akhiri percakapan</button>` : ''}`
+    : ''
+
+  $('#pf').hidden = !cur || cur.ended
+  $('#pend').hidden = !(cur && cur.ended)
+  $('#pbody').value = S.draft
+
+  const list = S.cmsgs.filter(m => m.chat_id === S.chatSel)
+
+  $('#pmsgs').innerHTML = S.pLoad ? SPINNER : cur
+    ? list.map(m => m.sys
+      ? `<div class="sys">${esc(m.body)}</div>`
+      : `<div class="msg ${m.from_admin === isAdmin ? 'me' : ''}">
+            ${esc(m.body)}
+            <small>${m.from_admin ? 'Admin' : esc(cur.profiles?.name)}, ${fmtTime(m.created_at)}</small>
+          </div>`).join('')
+    : '<p class="hint">Pilih percakapan di samping.</p>'
+
+  $('#pmsgs').scrollTop = $('#pmsgs').scrollHeight
+}
+
+async function sendPesan(form) {
+  const body = form.body.value.trim()
+  if (!body || !S.chatSel) return
+
+  const ok = await run(db.from('loan_msgs').insert({
+    chat_id: S.chatSel,
+    from_admin: S.me.role === 'admin',
+    body
+  }))
+
+  if (ok) {
+    form.reset()
+    S.draft = ''
+    await loadPesan()
+  }
+}
+
+async function endPesan(id) {
+  if (!confirm('Akhiri percakapan ini? Setelah diakhiri tidak ada yang bisa mengirim pesan lagi.')) return
+  if (await run(db.from('loan_chats').update({ ended: true }).eq('id', id), 'Percakapan diakhiri')) loadPesan()
+}
+
+async function hidePesan() {
+  if (!confirm('Hapus chat ini dari daftarmu? Pihak lain tetap bisa melihatnya.')) return
+  if (await run(db.rpc('hide_loan_chat', { cid: S.chatSel }), 'Chat dihapus dari daftarmu')) loadPesan()
+}
+
 function drawRows() {
   const keyword = S.f.toLowerCase()
 
@@ -374,7 +530,8 @@ function drawRows() {
   const actions = {
     booking: id => button('approved', id, 'Setujui') + button('ditolak', id, 'Tolak', 'danger'),
     approved: id => button('dipinjam', id, 'Buku diambil'),
-    dipinjam: id => button('dikembalikan', id, 'Dikembalikan')
+    dipinjam: id => button('dikembalikan', id, 'Dikembalikan'),
+    dikembalikan: id => button('selesai', id, 'Tandai selesai')
   }
 
   const list = S.all.filter(l =>
@@ -394,6 +551,7 @@ function drawRows() {
       <td>${l.days} hari</td>
       <td>
         <span class="chip s-${l.status}">${l.status}</span>
+        ${l.cancel_reason ? `<br><small class="hint">Alasan: ${esc(l.cancel_reason)}</small>` : ''}
         ${isLate(l) ? '<b class="late">terlambat</b>' : ''}
       </td>
       <td>${actions[l.status]?.(l.id) || '-'}</td>
@@ -423,7 +581,7 @@ function drawChat() {
   const select = $('#threadsel')
   const isAdmin = S.me.role === 'admin'
 
-  $('#ctitle').textContent = isAdmin ? 'Customer Message(s)' : 'Customer Service'
+  $('#ctitle').textContent = isAdmin ? 'Chat pengguna' : 'Chat CS'
   select.hidden = !isAdmin
 
   // admin: pilih percakapan, yang terbaru di atas
@@ -442,18 +600,26 @@ function drawChat() {
   }
 
   const list = S.msgs.filter(m => m.user_id === currentThread())
+  const last = list[list.length - 1]
+  const ended = !!last?.ended && !(S.reopen && !isAdmin)
+
+  $('#cf').hidden = ended
+  $('#cend').hidden = !list.length || ended
+  $('#cnew').hidden = !ended
+  $('#cnew button').hidden = isAdmin
 
   if (!list.length) {
     box.innerHTML = `<p class="hint">${isAdmin ? 'Belum ada pesan masuk.' : 'Tanyakan apa saja soal buku atau peminjaman. Admin akan membalas di sini.'}</p>`
     return
   }
 
-  box.innerHTML = list.map(m => `
-    <div class="msg ${m.from_admin === isAdmin ? 'me' : ''}">
-      ${m.image ? `<a href="${esc(m.image)}" target="_blank" rel="noopener"><img src="${esc(m.image)}" alt="Gambar kiriman"></a>` : ''}
-      ${esc(m.body)}
-      <small>${m.from_admin ? 'Admin' : esc(m.profiles?.name)}, ${fmtTime(m.created_at)}</small>
-    </div>`).join('')
+  box.innerHTML = list.map(m => m.ended
+    ? `<div class="sys">${esc(m.body)}</div>`
+    : `<div class="msg ${m.from_admin === isAdmin ? 'me' : ''}">
+        ${m.image ? `<a href="${esc(m.image)}" target="_blank" rel="noopener"><img src="${esc(m.image)}" alt="Gambar kiriman"></a>` : ''}
+        ${esc(m.body)}
+        <small>${m.from_admin ? 'Admin' : esc(m.profiles?.name)}, ${fmtTime(m.created_at)}</small>
+      </div>`).join('')
 
   box.scrollTop = box.scrollHeight
   tickCooldown()
@@ -492,7 +658,9 @@ async function sendChat(form) {
     }
 
     const path = `${S.me.id}/${Date.now()}-${file.name.replace(/[^\w.-]/g, '_')}`
+    busy(1)
     const upload = await db.storage.from('chat').upload(path, file)
+    busy(-1)
     if (upload.error) return toast(upload.error.message, true)
 
     image = db.storage.from('chat').getPublicUrl(path).data.publicUrl
@@ -510,6 +678,7 @@ async function sendChat(form) {
 
   form.reset()
   if (!isAdmin) S.lastSend = Date.now()
+  S.reopen = false
   await loadChat()
 }
 
@@ -525,15 +694,63 @@ function closeModal() {
   history.replaceState(null, '', location.pathname)
 }
 
+const ZOOMBAR = `
+  <div class="zoombar">
+    <button data-zoom="out" aria-label="Perkecil">−</button>
+    <button data-zoom="reset" aria-label="Ukuran asli">1:1</button>
+    <button data-zoom="in" aria-label="Perbesar">+</button>
+  </div>`
+
+const zoom = { z: 1, x: 0, y: 0 }
+let drag = null
+
+function applyZoom(stage) {
+  const images = stage.querySelectorAll('.slide img')
+  images.forEach(img => { img.style.transform = '' })
+
+  const img = images[+stage.dataset.i]
+  if (img) img.style.transform = `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.z})`
+
+  stage.classList.toggle('zoomed', zoom.z > 1)
+}
+
+function setZoom(stage, z) {
+  zoom.z = Math.min(4, Math.max(1, z))
+
+  if (zoom.z === 1) {
+    zoom.x = 0
+    zoom.y = 0
+  }
+  applyZoom(stage)
+}
+
 async function openBook(id) {
   // lihat buku berdasarkan ID
+  busy(1)
   const { data: b, error } = await db.from('books').select('*').eq('id', id).single()
+  busy(-1)
   if (error) return toast('Buku tidak ditemukan', true)
 
+  zoom.z = 1
+  zoom.x = 0
+  zoom.y = 0
   history.replaceState(null, '', '#buku=' + id)
 
   const images = [b.cover, ...(b.slides || [])].filter(Boolean)
   const me = S.me
+  const active = l => ['booking', 'approved', 'dipinjam'].includes(l.status)
+  const already = S.mine.some(l => l.book_id === b.id && active(l))
+  const hasBooking = S.mine.some(l => ['booking', 'approved'].includes(l.status))
+  const hasRent = S.mine.some(l => l.status === 'dipinjam')
+  const limitBooking = !S.set.multi_book && hasBooking
+  const limitRent = !S.set.multi_rent && hasRent
+  const canBook = b.stock > 0 && !already && !limitBooking && !limitRent
+
+  let note = ''
+  if (already) note = 'Kamu sudah booking atau meminjam buku ini.'
+  else if (limitBooking) note = 'Kamu masih punya booking aktif. Selesaikan atau batalkan dulu.'
+  else if (limitRent) note = 'Kembalikan buku yang sedang kamu pinjam dulu sebelum booking lagi.'
+
   let actions = ''
 
   if (!me) {
@@ -551,19 +768,26 @@ async function openBook(id) {
         <option value="custom">Custom</option>
       </select>
       <input id="custom" type="number" min="1" max="28" placeholder="1-28 hari" hidden>
-      <button class="btn" data-book="${b.id}" ${b.stock ? '' : 'disabled'}>Booking buku</button>`
+      <button class="btn" data-book="${b.id}" ${canBook ? '' : 'disabled'}>Booking buku</button>`
   }
 
   modal(`
-    <div class="slider">
-      ${images.map(u => `<img src="${esc(u)}" alt="">`).join('') || '<div class="noimg">📖</div>'}
+    <div class="stage" data-i="0" data-n="${images.length}">
+      <div class="track">
+        ${images.map(u => `<div class="slide"><img src="${esc(u)}" alt=""></div>`).join('') || '<div class="slide">📖</div>'}
+      </div>
+      ${images.length ? ZOOMBAR : ''}
+      ${images.length > 1 ? `
+        <button class="snav l" data-slide="-1" aria-label="Sebelumnya">&lt;</button>
+        <button class="snav r" data-slide="1" aria-label="Berikutnya">&gt;</button>
+        <span class="count">1 / ${images.length}</span>` : ''}
     </div>
-    ${images.length > 1 ? '<p class="hint">Geser gambar untuk melihat lainnya</p>' : ''}
     <h2>${esc(b.title)}</h2>
     <p class="hint">${esc(b.author)} · ${esc(b.category)} · ID ${b.id}</p>
     <p style="margin-top:.6rem">${esc(b.description) || 'Belum ada deskripsi.'}</p>
     <p class="${b.stock ? 'ok' : 'no'}" style="margin-top:.6rem"><b>${b.stock ? 'Stok tersedia: ' + b.stock : 'Stok habis'}</b></p>
-    <div class="act">${actions}</div>`)
+    <div class="act">${actions}</div>
+    <p class="hint" style="margin-top:.6rem">${note}</p>`)
 }
 
 function readDays() {
@@ -574,7 +798,60 @@ function readDays() {
   return n >= 1 && n <= 28 ? n : null
 }
 
+async function uploadImage(file) {
+  if (!file.type.startsWith('image/') || file.size > 2 * 1024 * 1024) {
+    toast(file.name + ': hanya gambar, maksimal 2 MB', true)
+    return null
+  }
+
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${file.name.replace(/[^\w.-]/g, '_')}`
+
+  busy(1)
+  const { error } = await db.storage.from('books').upload(path, file)
+  busy(-1)
+
+  if (error) {
+    toast(error.message, true)
+    return null
+  }
+  return db.storage.from('books').getPublicUrl(path).data.publicUrl
+}
+
+const pv = { cover: '', slides: [] }   // URL sementara untuk file yang baru dipilih
+
+function drawPreview() {
+  const form = $('#bf')
+  if (!form || !$('#bprev')) return
+
+  const f = form.elements
+  const cover = pv.cover || f.cover.value.trim()
+  const slides = f.slides.value.split('\n').map(s => s.trim()).filter(Boolean).concat(pv.slides)
+  const stock = +f.stock.value
+
+  $('#bprev').innerHTML = `
+    <p class="hint">Pratinjau (seperti tampilan di katalog)</p>
+    <div class="prev-row">
+      <article class="card prev-card">
+        <div class="cover">📖${cover ? `<img src="${esc(cover)}" alt="" onerror="this.remove()">` : ''}</div>
+        <div class="ci">
+          <h3>${esc(f.title.value) || 'Judul buku'}</h3>
+          <p>${esc(f.author.value) || 'Penulis'}</p>
+          <em class="${stock > 0 ? 'ok' : 'no'}">${stock > 0 ? 'Stok ' + stock : 'Stok habis'}</em>
+        </div>
+      </article>
+      <div class="prev-slides">
+        ${slides.length
+      ? slides.map(u => `<img src="${esc(u)}" alt="" onerror="this.remove()">`).join('')
+      : '<p class="hint">Gambar slide akan tampil di sini.</p>'}
+      </div>
+    </div>`
+}
+
 function bookForm(b = {}) {
+  ;[pv.cover, ...pv.slides].filter(Boolean).forEach(u => URL.revokeObjectURL(u))
+  pv.cover = ''
+  pv.slides = []
+
   const field = (name, placeholder, required = '') =>
     `<input name="${name}" placeholder="${placeholder}" value="${esc(b[name])}" ${required}>`
 
@@ -586,17 +863,26 @@ function bookForm(b = {}) {
       <select name="category" required>${categoryOptions(b.category, false)}</select>
       <input name="stock" type="number" min="0" placeholder="Stok" value="${b.stock ?? 1}" required>
       ${field('cover', 'URL thumbnail (gambar sampul)')}
+      <label class="hint">Atau unggah file thumbnail (maks. 2 MB)
+        <input type="file" name="coverfile" accept="image/*">
+      </label>
       <textarea name="slides" placeholder="URL gambar slide, satu per baris">${esc((b.slides || []).join('\n'))}</textarea>
+      <label class="hint">Atau unggah file gambar slide (boleh banyak)
+        <input type="file" name="slidefiles" accept="image/*" multiple>
+      </label>
       <textarea name="description" placeholder="Deskripsi">${esc(b.description)}</textarea>
+      <div id="bprev"></div>
       <button class="btn">Simpan buku</button>
     </form>`)
+  drawPreview()
 }
 
 function authForm(isRegister) {
   modal(`
     <h2>${isRegister ? 'Daftar akun' : 'Masuk'}</h2>
     <form id="af" data-reg="${isRegister}">
-      ${isRegister ? '<input name="name" placeholder="Nama lengkap" required>' : ''}
+      ${isRegister ? `<input name="name" placeholder="Nama lengkap" required>
+      <input name="phone" type="tel" placeholder="Nomor HP (08xxxxxxxxxx)" required pattern="([+]62|62|0)8[0-9]{8,12}" title="Contoh: 081234567890">` : ''}
       <input name="email" type="email" placeholder="Email" required>
       <input name="password" type="password" minlength="6" placeholder="Kata sandi (min. 6 karakter)" required>
       <button class="btn">${isRegister ? 'Daftar' : 'Masuk'}</button>
@@ -637,6 +923,55 @@ function openAccounts() {
 }
 
 
+const CANCEL_REASONS = [
+  'Salah memilih buku',
+  'Sudah menemukan buku di tempat lain',
+  'Tidak jadi membutuhkan buku ini',
+  'Tidak sempat datang ke perpustakaan'
+]
+
+function cancelStep1(id) {
+  modal(`
+    <h2>Batalkan booking</h2>
+    <p class="hint">Langkah 1 dari 2: pilih alasan pembatalan.</p>
+    <form id="cr" data-id="${id}">
+      <select name="reason">
+        ${CANCEL_REASONS.map(r => `<option>${r}</option>`).join('')}
+        <option value="__lain">Lainnya (tulis sendiri)</option>
+      </select>
+      <textarea name="custom" placeholder="Tulis alasanmu" maxlength="200" hidden></textarea>
+      <button class="btn">Lanjut</button>
+    </form>`)
+}
+
+function cancelStep2() {
+  modal(`
+    <h2>Yakin batalkan booking?</h2>
+    <p class="hint">Langkah 2 dari 2: konfirmasi.</p>
+    <p style="margin-top:.6rem">Alasan: <b>${esc(S.cancel.reason)}</b></p>
+    <div class="act">
+      <button class="btn danger" data-cancelyes>Ya, batalkan</button>
+      <button class="btn ghost" data-close>Kembali</button>
+    </div>`)
+}
+
+async function endChat() {
+  if (!currentThread() || !confirm('Akhiri percakapan ini?')) return
+
+  const isAdmin = S.me.role === 'admin'
+
+  const ok = await run(db.from('messages').insert({
+    user_id: currentThread(),
+    sender_id: S.me.id,
+    from_admin: isAdmin,
+    ended: true,
+    body: 'Percakapan diakhiri oleh ' + (isAdmin ? 'admin' : 'pengguna')
+  }))
+
+  if (ok) await loadChat()
+}
+
+
 /* ---------- 10. EVENT ---------- */
 document.addEventListener('click', async e => {
   const find = key => e.target.closest(`[data-${key}]`)
@@ -648,7 +983,8 @@ document.addEventListener('click', async e => {
   // pindah halaman
   if (el = find('v')) {
     S.view = el.dataset.v
-    render()
+    render(true)
+    if (S.view === 'pesan') loadPesan(true)
     return
   }
 
@@ -703,13 +1039,54 @@ document.addEventListener('click', async e => {
     return
   }
 
-  if (el = find('cancel')) {
+  if (el = find('cancel')) return cancelStep1(el.dataset.cancel)
+
+  if (find('cancelyes')) {
     const ok = await run(
-      db.from('loans').update({ status: 'dibatalkan' }).eq('id', el.dataset.cancel),
+      db.from('loans').update({ status: 'dibatalkan', cancel_reason: S.cancel.reason }).eq('id', S.cancel.id),
       'Booking dibatalkan'
     )
-    if (ok) loadData()
+    if (ok) {
+      closeModal()
+      loadData()
+    }
     return
+  }
+
+  // zoom gambar slide
+  if (el = find('zoom')) {
+    const action = el.dataset.zoom
+    const next = action === 'in' ? zoom.z + 0.5 : action === 'out' ? zoom.z - 0.5 : 1
+    return setZoom(el.closest('.stage'), next)
+  }
+
+  // halaman Pesan
+  if (el = find('pchat')) {
+    S.chatSel = +el.dataset.pchat
+    S.draft = ''
+    return drawPesan()
+  }
+  if (el = find('pend')) return endPesan(+el.dataset.pend)
+  if (find('pdel')) return hidePesan()
+
+  // slider gambar buku
+  if (el = find('slide')) {
+    const stage = el.closest('.stage')
+    const total = +stage.dataset.n
+    const index = (+stage.dataset.i + +el.dataset.slide + total) % total
+
+    stage.dataset.i = index
+    stage.querySelector('.track').style.transform = `translateX(-${index * 100}%)`
+    stage.querySelector('.count').textContent = `${index + 1} / ${total}`
+    setZoom(stage, 1)
+    return
+  }
+
+  // chat: akhiri / mulai baru
+  if (find('endchat')) return endChat()
+  if (find('newchat')) {
+    S.reopen = true
+    return drawChat()
   }
 
   // admin: ubah status peminjaman
@@ -736,13 +1113,35 @@ document.addEventListener('input', e => {
   } else if (e.target.id === 'cat') {
     S.cat = e.target.value
     drawGrid()
+  } else if (e.target.id === 'pbody') {
+    S.draft = e.target.value
   } else if (e.target.id === 'f') {
     S.f = e.target.value
     drawRows()
   }
+
+  if (e.target.closest('#bf')) drawPreview()
 })
 
 document.addEventListener('change', e => {
+  if (['multi_book', 'multi_rent'].includes(e.target.id)) {
+    const box = e.target
+    run(db.from('settings').upsert({ key: box.id, value: box.checked }), 'Pengaturan disimpan')
+      .then(ok => { if (ok) S.set[box.id] = box.checked; else box.checked = !box.checked })
+  }
+
+  if (e.target.name === 'coverfile') {
+    pv.cover = e.target.files[0] ? URL.createObjectURL(e.target.files[0]) : ''
+    drawPreview()
+  }
+
+  if (e.target.name === 'slidefiles') {
+    pv.slides = [...e.target.files].map(file => URL.createObjectURL(file))
+    drawPreview()
+  }
+
+  if (e.target.name === 'reason') e.target.form.custom.hidden = e.target.value !== '__lain'
+
   if (e.target.id === 'threadsel') {
     S.thread = e.target.value
     drawChat()
@@ -761,31 +1160,56 @@ document.addEventListener('submit', async e => {
   const form = e.target
   const data = Object.fromEntries(new FormData(form))
 
+  // pembatalan booking, langkah 1 -> 2
+  if (form.id === 'cr') {
+    const reason = data.reason === '__lain' ? data.custom.trim() : data.reason
+    if (!reason) return toast('Tulis alasan pembatalanmu', true)
+
+    S.cancel = { id: form.dataset.id, reason }
+    return cancelStep2()
+  }
+
   // login / daftar
   if (form.id === 'af') {
     const isRegister = form.dataset.reg === '1'
 
     const result = isRegister
-      ? await db.auth.signUp({ email: data.email, password: data.password, options: { data: { name: data.name } } })
+      ? await db.auth.signUp({ email: data.email, password: data.password, options: { data: { name: data.name, phone: data.phone } } })
       : await db.auth.signInWithPassword({ email: data.email, password: data.password })
 
-    if (result.error) return toast(result.error.message, true)
+    if (result.error) return toast(friendlyError(result.error), true)
 
     closeModal()
-    toast(isRegister && !result.data.session ? 'Cek email untuk konfirmasi akun' : 'Selamat datang!')
+    toast(isRegister && !result.data.session ? 'Cek emailmu untuk verifikasi akun, lalu masuk' : 'Selamat datang!')
     return
   }
 
   // simpan buku
   if (form.id === 'bf') {
+    let cover = data.cover || null
+    const slides = data.slides.split('\n').map(s => s.trim()).filter(Boolean)
+
+    // file yang dipilih diunggah dulu, lalu URL-nya disimpan
+    const coverFile = form.coverfile.files[0]
+    if (coverFile) {
+      cover = await uploadImage(coverFile)
+      if (!cover) return
+    }
+
+    for (const file of form.slidefiles.files) {
+      const url = await uploadImage(file)
+      if (!url) return
+      slides.push(url)
+    }
+
     const row = {
       title: data.title,
       author: data.author,
       category: data.category,
       stock: +data.stock,
-      cover: data.cover || null,
+      cover,
       description: data.description,
-      slides: data.slides.split('\n').map(s => s.trim()).filter(Boolean)
+      slides
     }
     const id = form.dataset.id
 
@@ -802,6 +1226,9 @@ document.addEventListener('submit', async e => {
 
   // kirim chat
   if (form.id === 'cf') sendChat(form)
+
+  // kirim pesan peminjaman
+  if (form.id === 'pf') sendPesan(form)
 })
 
 
@@ -821,6 +1248,9 @@ db.auth.onAuthStateChange((event, session) => {
     S.all = []
     S.msgs = []
     S.thread = null
+    S.chats = []
+    S.cmsgs = []
+    S.chatSel = null
 
     if (session) {
       const { data } = await db.from('profiles').select('*').eq('id', session.user.id).single()
@@ -829,11 +1259,14 @@ db.auth.onAuthStateChange((event, session) => {
     }
 
     if (!S.me && S.view !== 'katalog') S.view = 'katalog'
-    if (S.view === 'admin' && S.me?.role !== 'admin') S.view = 'katalog'
+    if (['admin', 'pengaturan'].includes(S.view) && S.me?.role !== 'admin') S.view = 'katalog'
+    if (S.view === 'saya' && S.me?.role === 'admin') S.view = 'katalog'
 
     setChat(false)
-    await loadData()
+    $('#main').innerHTML = SPINNER
+    await loadData(true)
     await loadChat()
+    await loadPesan()
 
     if (location.hash.startsWith('#buku=') && !$('#modal').classList.contains('open')) {
       openBook(location.hash.slice(6))
@@ -842,14 +1275,70 @@ db.auth.onAuthStateChange((event, session) => {
 })
 
 // realtime: perubahan di database langsung tampil tanpa refresh
+function refresh(table) {
+  if (table === 'messages') return loadChat()
+  if (table === 'loan_chats' || table === 'loan_msgs') return loadPesan()
+  return loadData()
+}
+
 const timers = {}
 
 db.channel('live')
   .on('postgres_changes', { event: '*', schema: 'public' }, payload => {
     clearTimeout(timers[payload.table])
     timers[payload.table] = setTimeout(
-      () => (payload.table === 'messages' ? loadChat() : loadData()),
+      () => refresh(payload.table),
       300
     )
   })
   .subscribe()
+
+
+// ---------- deteksi offline ----------
+let wasOffline = false
+
+function updateOnline() {
+  const offline = !navigator.onLine
+  $('#offline').classList.toggle('show', offline)
+
+  if (!offline && wasOffline) {
+    toast('Kembali online')
+    loadData()
+  }
+  wasOffline = offline
+}
+
+addEventListener('online', updateOnline)
+addEventListener('offline', updateOnline)
+updateOnline()
+
+
+// ---------- zoom gambar: roda mouse dan geser (pan) ----------
+document.addEventListener('wheel', e => {
+  const stage = e.target.closest('.stage')
+  if (!stage) return
+
+  e.preventDefault()
+  setZoom(stage, zoom.z + (e.deltaY < 0 ? 0.25 : -0.25))
+}, { passive: false })
+
+document.addEventListener('pointerdown', e => {
+  const stage = e.target.closest('.stage')
+  if (!stage || zoom.z <= 1 || e.target.closest('button')) return
+
+  drag = { stage, x: e.clientX - zoom.x, y: e.clientY - zoom.y }
+  stage.classList.add('drag')
+})
+
+document.addEventListener('pointermove', e => {
+  if (!drag) return
+
+  zoom.x = e.clientX - drag.x
+  zoom.y = e.clientY - drag.y
+  applyZoom(drag.stage)
+})
+
+document.addEventListener('pointerup', () => {
+  if (drag) drag.stage.classList.remove('drag')
+  drag = null
+})
