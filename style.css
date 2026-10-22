@@ -72,6 +72,11 @@
     display: none !important;
 }
 
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
 body {
     background: var(--bg);
     color: var(--ink);
@@ -248,7 +253,7 @@ button:focus-visible {
 
 .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(165px, 44%), 1fr));
     gap: 1.1rem;
 }
 
@@ -1260,6 +1265,39 @@ td .btn {
 @keyframes loncat {
     50% {
         transform: translateY(-4px);
+    }
+}
+
+
+/* ---------- 8f. LAYAR KECIL / DPI BESAR ---------- */
+@media (max-width: 520px) {
+    .view {
+        padding: 1rem;
+    }
+
+    .top {
+        gap: 0.6rem;
+        padding: 0.6rem 1rem;
+    }
+
+    .top h1 {
+        font-size: 1.2rem;
+    }
+
+    nav {
+        flex-wrap: wrap;
+    }
+
+    .grid {
+        gap: 0.7rem;
+    }
+
+    .ci {
+        padding: 0.55rem 0.6rem;
+    }
+
+    .box {
+        padding: 1rem;
     }
 }
 
