@@ -593,7 +593,7 @@ function drawChat() {
   const select = $('#threadsel')
   const isAdmin = S.me.role === 'admin'
 
-  $('#ctitle').textContent = isAdmin ? 'Chat pengguna' : 'Chat CS'
+  $('#ctitle').textContent = isAdmin ? 'Chat pengguna' : 'Chat Customer Service'
   select.hidden = !isAdmin
 
   // admin: pilih percakapan, yang terbaru di atas
