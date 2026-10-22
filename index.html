@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="ungu">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Perpustakaan Sekolah Online</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <header class="top">
+    <h1>Pustaka<span>Kita</span></h1>
+    <nav id="nav"></nav>
+    <button id="theme" class="icon-btn" data-themebtn aria-label="Ganti tema"></button>
+    <div id="auth"></div>
+  </header>
+
+  <main id="main" class="view"></main>
+  <div id="modal"></div>
+  <div id="toasts"></div>
+
+  <!-- Chat CS: gelembung + jendela kecil -->
+  <button id="bubble" class="bubble" data-chat aria-label="Buka chat CS" title="Chat CS" hidden>💬</button>
+  <section id="chatw" class="chatw" aria-label="Chat CS">
+    <div class="chat-head">
+      <b id="ctitle">Chat CS</b>
+      <button data-chat aria-label="Tutup chat">✕</button>
+    </div>
+    <select id="threadsel" aria-label="Pilih percakapan" hidden></select>
+    <div id="msgs"></div>
+    <form id="cf">
+      <label class="attach" title="Kirim gambar">📎
+        <input type="file" id="cfile" accept="image/*" hidden>
+      </label>
+      <input name="body" placeholder="Tulis pesan" maxlength="1000" autocomplete="off">
+      <button class="btn" id="send">Kirim</button>
+    </form>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>

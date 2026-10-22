@@ -1,0 +1,917 @@
+/* ==========================================================
+   PustakaKita - style.css
+   1. Tema   2. Dasar   3. Header   4. Tombol & form
+   5. Katalog   6. Modal   7. Pinjaman & admin   8. Chat   9. Lain-lain
+   ========================================================== */
+
+
+/* ---------- 1. TEMA ---------- */
+:root,
+[data-theme="ungu"] {
+    --bg: #eef0fb;
+    --card: #ffffff;
+    --ink: #1b1740;
+    --mut: #6b6890;
+    --line: #d8d6ee;
+    --soft: #e0e0fb;
+    --pri: #5b3fd6;
+    --pri2: #7459f0;
+    --onpri: #ffffff;
+    --top: #1b1740;
+    --topink: #ffffff;
+    --topmut: #c4c0ee;
+    --stamp: #f5d547;
+    --ok: #047857;
+    --bad: #b42318;
+}
+
+[data-theme="gelap"] {
+    --bg: #0f1115;
+    --card: #1a1d25;
+    --ink: #e8eaf0;
+    --mut: #8b91a1;
+    --line: #2c313d;
+    --soft: #262b38;
+    --pri: #6d72f0;
+    --pri2: #8a8ef7;
+    --onpri: #ffffff;
+    --top: #0a0c10;
+    --topink: #e8eaf0;
+    --topmut: #8b91a1;
+    --stamp: #f5d547;
+    --ok: #34d399;
+    --bad: #f87171;
+}
+
+[data-theme="terang"] {
+    --bg: #f7f7f5;
+    --card: #ffffff;
+    --ink: #18181b;
+    --mut: #71717a;
+    --line: #e4e4e7;
+    --soft: #eef2ff;
+    --pri: #2563eb;
+    --pri2: #1d4ed8;
+    --onpri: #ffffff;
+    --top: #ffffff;
+    --topink: #18181b;
+    --topmut: #71717a;
+    --stamp: #fde68a;
+    --ok: #047857;
+    --bad: #b42318;
+}
+
+
+/* ---------- 2. DASAR ---------- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+    line-height: 1.5;
+    transition: background 0.3s, color 0.3s;
+}
+
+.view {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+.view>* {
+    animation: masuk 0.35s both;
+}
+
+@keyframes masuk {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+
+/* ---------- 3. HEADER ---------- */
+.top {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.8rem 1.5rem;
+    background: var(--top);
+    color: var(--topink);
+    border-bottom: 1px solid var(--line);
+}
+
+.top h1 {
+    margin-right: auto;
+    font-size: 1.4rem;
+    font-weight: 800;
+}
+
+.top h1 span {
+    color: var(--pri2);
+}
+
+
+nav {
+    display: flex;
+    gap: 0.3rem;
+}
+
+nav button {
+    padding: 0.45rem 0.9rem;
+    border: 0;
+    border-radius: 99px;
+    background: none;
+    color: var(--topmut);
+    font: inherit;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+nav button:hover {
+    color: var(--topink);
+}
+
+nav button.on {
+    background: var(--pri);
+    color: var(--onpri);
+}
+
+#auth {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    font-size: 0.9rem;
+}
+
+
+/* ---------- 4. TOMBOL & FORM ---------- */
+.btn {
+    padding: 0.55rem 1.1rem;
+    border: 0;
+    border-radius: 8px;
+    background: var(--pri);
+    color: var(--onpri);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s, background 0.2s;
+}
+
+.btn:hover {
+    background: var(--pri2);
+}
+
+.btn:active {
+    transform: scale(0.96);
+}
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn.ghost {
+    background: transparent;
+    border: 1px solid currentColor;
+    color: inherit;
+}
+
+.btn.danger {
+    background: var(--bad);
+    color: #ffffff;
+}
+
+.btn.sm {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.82rem;
+}
+
+input,
+select,
+textarea {
+    width: 100%;
+    padding: 0.55rem 0.8rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--ink);
+    font: inherit;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible {
+    outline: 2px solid var(--pri2);
+    outline-offset: 1px;
+}
+
+.hint {
+    color: var(--mut);
+    font-size: 0.85rem;
+}
+
+.hint a {
+    color: var(--pri2);
+}
+
+
+/* ---------- 5. KATALOG ---------- */
+.bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-bottom: 1.2rem;
+}
+
+.bar input {
+    flex: 1;
+    min-width: 180px;
+}
+
+.bar select {
+    width: auto;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+    gap: 1.1rem;
+}
+
+.card {
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--card);
+    cursor: pointer;
+    transition: transform 0.25s, box-shadow 0.25s;
+}
+
+.card:hover {
+    transform: translateY(-5px) rotate(-0.6deg);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.2);
+}
+
+.cover {
+    position: relative;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 3 / 4;
+    background: var(--soft);
+    font-size: 2.5rem;
+}
+
+.cover img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ci {
+    padding: 0.7rem 0.8rem;
+}
+
+.ci h3 {
+    font-size: 0.95rem;
+    line-height: 1.25;
+}
+
+.ci p {
+    color: var(--mut);
+    font-size: 0.8rem;
+}
+
+.ci em {
+    font-size: 0.75rem;
+    font-style: normal;
+    font-weight: 600;
+}
+
+.ok {
+    color: var(--ok);
+}
+
+.no {
+    color: var(--bad);
+}
+
+.empty {
+    grid-column: 1 / -1;
+    padding: 3rem 0;
+    color: var(--mut);
+    text-align: center;
+}
+
+
+/* ---------- 6. MODAL ---------- */
+#modal {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    overflow: auto;
+    background: rgba(8, 8, 20, 0.7);
+    opacity: 0;
+    pointer-events: none;
+    transition: 0.25s;
+}
+
+#modal.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.box {
+    position: relative;
+    width: min(520px, 100%);
+    max-height: 92vh;
+    padding: 1.4rem;
+    overflow: auto;
+    border-radius: 16px;
+    background: var(--card);
+    transform: scale(0.92) translateY(14px);
+    transition: 0.3s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+
+#modal.open .box {
+    transform: none;
+}
+
+.box h2 {
+    margin: 0.8rem 0 0.2rem;
+}
+
+.box form {
+    display: grid;
+    gap: 0.7rem;
+}
+
+.box textarea {
+    min-height: 80px;
+}
+
+.x {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.8rem;
+    z-index: 2;
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    border-radius: 50%;
+    background: var(--card);
+    color: var(--ink);
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.slider {
+    display: flex;
+    gap: 0.6rem;
+    overflow-x: auto;
+    border-radius: 10px;
+    scroll-snap-type: x mandatory;
+}
+
+.slider img,
+.noimg {
+    flex: 0 0 100%;
+    height: 260px;
+    border-radius: 10px;
+    object-fit: cover;
+    scroll-snap-align: center;
+}
+
+.noimg {
+    display: grid;
+    place-items: center;
+    background: var(--soft);
+    font-size: 4rem;
+}
+
+.act {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 1rem;
+}
+
+.act select,
+.act input {
+    width: auto;
+    max-width: 130px;
+}
+
+
+/* ---------- 7. PINJAMAN & ADMIN ---------- */
+.chip {
+    display: inline-block;
+    padding: 0.1rem 0.6rem;
+    border-radius: 99px;
+    background: var(--soft);
+    color: var(--pri2);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.s-approved {
+    background: var(--stamp);
+    color: #3b3000;
+}
+
+.s-dipinjam {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--ok);
+}
+
+.s-ditolak,
+.s-dibatalkan {
+    background: rgba(239, 68, 68, 0.18);
+    color: var(--bad);
+}
+
+.s-dikembalikan {
+    background: var(--soft);
+    color: var(--mut);
+}
+
+.loan {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.8rem;
+    padding: 1rem 1.2rem;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--card);
+}
+
+.loan>div:first-child {
+    flex: 1;
+    min-width: 200px;
+}
+
+.loan p {
+    color: var(--mut);
+    font-size: 0.85rem;
+}
+
+.late {
+    color: var(--bad) !important;
+    font-weight: 600;
+}
+
+.code {
+    padding: 0.5rem 1.1rem;
+    border: 2px dashed #3b3000;
+    border-radius: 6px;
+    background: var(--stamp);
+    color: #3b3000;
+    text-align: center;
+    transform: rotate(-2deg);
+    animation: stempel 0.5s both;
+}
+
+.code small {
+    display: block;
+    font-size: 0.7rem;
+}
+
+.code b {
+    font-size: 1.7rem;
+    letter-spacing: 0.18em;
+}
+
+@keyframes stempel {
+    from {
+        opacity: 0;
+        transform: scale(1.8) rotate(-12deg);
+    }
+}
+
+.stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin-bottom: 1rem;
+}
+
+.stats div {
+    flex: 1;
+    min-width: 110px;
+    padding: 0.7rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--card);
+}
+
+.stats b {
+    display: block;
+    font-size: 1.5rem;
+}
+
+.tw {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--card);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+th,
+td {
+    padding: 0.65rem 0.8rem;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    white-space: nowrap;
+}
+
+th {
+    background: var(--soft);
+}
+
+td .btn {
+    margin-right: 0.3rem;
+}
+
+
+/* ---------- 8. TEMA (ikon), CHAT CS, AKUN ---------- */
+
+
+
+
+
+
+
+#msgs {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.msg {
+    max-width: 75%;
+    padding: 0.5rem 0.8rem;
+    border-radius: 14px;
+    background: var(--soft);
+    animation: masuk 0.25s both;
+    overflow-wrap: anywhere;
+}
+
+.msg.me {
+    align-self: flex-end;
+    background: var(--pri);
+    color: var(--onpri);
+}
+
+.msg img {
+    display: block;
+    max-width: 220px;
+    margin-bottom: 0.3rem;
+    border-radius: 8px;
+}
+
+.msg small {
+    display: block;
+    opacity: 0.65;
+    font-size: 0.7rem;
+}
+
+#cf {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem;
+    border-top: 1px solid var(--line);
+}
+
+.attach {
+    font-size: 1.3rem;
+    cursor: pointer;
+}
+
+
+/* tombol tema: ikon + animasi putar + gelombang lingkaran */
+.icon-btn {
+    display: grid;
+    place-items: center;
+    width: 2.3rem;
+    height: 2.3rem;
+    border: 1px solid var(--topmut);
+    border-radius: 50%;
+    background: none;
+    font-size: 1.15rem;
+    cursor: pointer;
+}
+
+.icon-btn.spin {
+    animation: putar 0.65s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+@keyframes putar {
+    50% {
+        transform: rotate(200deg) scale(0.4);
+    }
+
+    to {
+        transform: rotate(360deg) scale(1);
+    }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+    mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+    animation: none;
+}
+
+::view-transition-new(root) {
+    animation: gelombang 0.7s ease-out;
+}
+
+@keyframes gelombang {
+    from {
+        clip-path: circle(0 at var(--tx, 90%) var(--ty, 0));
+    }
+
+    to {
+        clip-path: circle(150vmax at var(--tx, 90%) var(--ty, 0));
+    }
+}
+
+/* gelembung chat */
+.bubble {
+    position: fixed;
+    right: 1.2rem;
+    bottom: 1.2rem;
+    z-index: 15;
+    width: 3.4rem;
+    height: 3.4rem;
+    border: 0;
+    border-radius: 50%;
+    background: var(--pri);
+    color: var(--onpri);
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+    transition: transform 0.2s;
+    animation: muncul 0.4s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+
+.bubble:hover {
+    transform: scale(1.1) rotate(-6deg);
+}
+
+@keyframes muncul {
+    from {
+        transform: scale(0);
+    }
+}
+
+/* jendela chat kecil */
+.chatw {
+    position: fixed;
+    right: 1.2rem;
+    bottom: 5.6rem;
+    z-index: 16;
+    display: flex;
+    flex-direction: column;
+    width: min(340px, calc(100vw - 2rem));
+    height: min(460px, 70vh);
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--card);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+    visibility: hidden;
+    opacity: 0;
+    transform-origin: bottom right;
+    transform: scale(0.6) translateY(30px);
+    transition: 0.25s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+
+.chatw.open {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+}
+
+.chat-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.7rem 1rem;
+    background: var(--pri);
+    color: var(--onpri);
+}
+
+.chat-head button {
+    border: 0;
+    background: none;
+    color: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+#threadsel {
+    border-width: 0 0 1px;
+    border-radius: 0;
+}
+
+#msgs {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 0;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.msg {
+    max-width: 80%;
+    padding: 0.5rem 0.8rem;
+    border-radius: 14px;
+    background: var(--soft);
+    animation: masuk 0.25s both;
+    overflow-wrap: anywhere;
+}
+
+.msg.me {
+    align-self: flex-end;
+    background: var(--pri);
+    color: var(--onpri);
+}
+
+.msg img {
+    display: block;
+    max-width: 100%;
+    margin-bottom: 0.3rem;
+    border-radius: 8px;
+}
+
+.msg small {
+    display: block;
+    opacity: 0.65;
+    font-size: 0.7rem;
+}
+
+#cf {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem;
+    border-top: 1px solid var(--line);
+}
+
+.attach {
+    font-size: 1.3rem;
+    cursor: pointer;
+}
+
+/* akun tersimpan */
+.who {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.2rem 0.8rem 0.2rem 0.2rem;
+    border: 1px solid var(--topmut);
+    border-radius: 99px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.ava {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 50%;
+    background: var(--pri);
+    color: var(--onpri);
+    font-weight: 800;
+}
+
+.who .ava {
+    width: 1.7rem;
+    height: 1.7rem;
+    font-size: 0.8rem;
+}
+
+.acct {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin-bottom: 0.5rem;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.acct:hover {
+    border-color: var(--pri2);
+    transform: translateX(3px);
+}
+
+.acct.on {
+    border-color: var(--pri2);
+    background: var(--soft);
+}
+
+.acct div {
+    flex: 1;
+    min-width: 0;
+}
+
+.acct small {
+    display: block;
+    overflow: hidden;
+    color: var(--mut);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.forget {
+    border: 0;
+    background: none;
+    color: var(--mut);
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.forget:hover {
+    color: var(--bad);
+}
+
+
+/* ---------- 9. LAIN-LAIN ---------- */
+#toasts {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 30;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.toast {
+    max-width: 300px;
+    padding: 0.7rem 1.1rem;
+    border-radius: 10px;
+    background: #101828;
+    color: #ffffff;
+    animation: geser 0.3s both;
+}
+
+.toast.err {
+    background: var(--bad);
+}
+
+@keyframes geser {
+    from {
+        transform: translateX(120%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
