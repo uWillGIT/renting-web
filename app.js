@@ -102,6 +102,7 @@ const CHANGELOG = [
     title: 'Pembaruan besar',
     date: '23 Okt 2026',
     items: [
+      'Sistem Halaman Katalog',
       'Urutan Buku-Buku Katalog',
       'Tahun Terbit & Jumlah Halaman Buku',
       '[ADMIN] kini tahu siapa admin yang membalas Chat Customer Service dan Pesan.',
