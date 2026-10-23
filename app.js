@@ -14,8 +14,10 @@ const db = supabase.createClient(new URL(SUPABASE_URL).origin, SUPABASE_KEY)
 
 /* ---------- 2. DATA TETAP ---------- */
 const KATEGORI = [
-  'Fiksi', 'Non-Fiksi', 'Pelajaran', 'Sains', 'Sejarah',
-  'Komik', 'Biografi', 'Bahasa', 'Agama', 'Lainnya'
+  'Fiksi', 'Novel', 'Cerpen dan Puisi', 'Komik', 'Non-Fiksi',
+  'Pelajaran', 'Matematika', 'Sains', 'Teknologi', 'Sejarah',
+  'Biografi', 'Bahasa', 'Agama', 'Seni dan Budaya', 'Olahraga',
+  'Pengembangan Diri', 'Referensi', 'Lainnya'
 ]
 
 const STATUS = {
@@ -45,6 +47,22 @@ const SORTS = [
   ['terbaru', 'Urutkan: pengajuan terbaru'],
   ['terlama', 'Urutkan: pengajuan terlama'],
   ['terlambat', 'Urutkan: terlambat dulu']
+]
+
+// urutan katalog buku (kunci dipakai oleh sortBooks)
+const BSORTS = [
+  ['terbaru', 'Urutkan: terbaru diunggah'],
+  ['terlama', 'Urutkan: terlama diunggah'],
+  ['diubah', 'Urutkan: terakhir diubah'],
+  ['nama_az', 'Urutkan: nama A-Z'],
+  ['nama_za', 'Urutkan: nama Z-A'],
+  ['stok_rendah', 'Urutkan: stok terendah'],
+  ['stok_tinggi', 'Urutkan: stok tertinggi'],
+  ['rilis_baru', 'Urutkan: tahun terbit terbaru'],
+  ['rilis_lama', 'Urutkan: tahun terbit terlama'],
+  ['hal_sedikit', 'Urutkan: halaman tersedikit'],
+  ['hal_banyak', 'Urutkan: halaman terbanyak'],
+  ['limited', 'Urutkan: LIMITED TIME dulu']
 ]
 
 const COOLDOWN_CHAT = 5000
@@ -95,7 +113,10 @@ const CHANGELOG = [
       'Durasi pinjam tetap 5 hari; [ADMIN] bisa menyalakan variasi durasi.',
       'Katalog kini berhalaman.',
       'Label LIMITED TIME untuk buku tertentu.',
-      'Tombol konfirmasi kustom (Ya / Batal) menggantikan kotak konfirmasi bawaan browser.'
+      'Tombol konfirmasi kustom (Ya / Batal) menggantikan kotak konfirmasi bawaan browser.',
+      'Buku kini punya Tahun Terbit dan Jumlah Halaman (tampil di katalog dan detail buku).',
+      'Katalog bisa diurutkan: stok, nama, tahun terbit, jumlah halaman, tanggal unggah, dan terakhir diubah.',
+      'Kategori baru: Novel, Cerpen dan Puisi, Matematika, Teknologi, Seni dan Budaya, Olahraga, Pengembangan Diri, Referensi.'
     ]
   }
 ]
@@ -127,6 +148,7 @@ const S = {
   cancel: null,    // data pembatalan yang sedang diproses
   reopen: false,   // user memulai chat baru setelah diakhiri
   page: 1,         // halaman katalog
+  bsort: 'terbaru', // urutan katalog buku
   sort: 'status',  // urutan tabel Kelola peminjaman
   sf: '',          // filter status Kelola peminjaman
   seen: {},        // penanda "sudah dilihat" untuk bubble notifikasi (disimpan per akun di perangkat)
@@ -183,6 +205,33 @@ function isMobile() {
 function stockLabel(b) {
   const limited = b.limited && b.stock > 0 ? LIMITED_HTML : ''
   return `<em class="${b.stock ? 'ok' : 'no'}">${b.stock ? 'Stok ' + b.stock + limited : 'Stok habis'}</em>`
+}
+
+// tahun terbit & jumlah halaman: baris kecil di kartu katalog (kosong jika belum diisi)
+function bookMeta(b) {
+  const year = +b.publish_year
+  const pages = +b.pages
+  const parts = []
+
+  if (year > 0) parts.push(year)
+  if (pages > 0) parts.push(pages.toLocaleString('id-ID') + ' hlm')
+
+  return parts.length ? `<small class="bmeta">${parts.join(' · ')}</small>` : ''
+}
+
+// tahun terbit & jumlah halaman: dua kotak info di detail buku
+function bookFacts(b) {
+  const year = +b.publish_year
+  const pages = +b.pages
+  const items = []
+
+  if (year > 0) items.push(['📅', year, 'Tahun terbit'])
+  if (pages > 0) items.push(['📄', pages.toLocaleString('id-ID'), 'Halaman'])
+
+  return items.length
+    ? `<div class="facts">${items.map(([icon, value, label]) =>
+      `<div><span aria-hidden="true">${icon}</span><b>${value}</b><small>${label}</small></div>`).join('')}</div>`
+    : ''
 }
 
 // nama pengirim pesan. Admin bisa melihat NAMA admin yang membalas; user hanya melihat "Admin".
@@ -711,10 +760,49 @@ function viewKatalog() {
     <div class="bar">
       <input id="q" placeholder="Cari judul atau penulis" value="${esc(S.q)}">
       <select id="cat">${categoryOptions(S.cat, true)}</select>
+      <select id="bsort" aria-label="Urutkan buku">
+        ${BSORTS.map(([key, label]) => `<option value="${key}" ${S.bsort === key ? 'selected' : ''}>${label}</option>`).join('')}
+      </select>
       ${addButton}
     </div>
     <div class="grid" id="grid"></div>
     <div class="pager" id="pager"></div>`
+}
+
+// urutkan daftar buku (di tempat) sesuai S.bsort. Nilai kosong (tahun/halaman) selalu di akhir.
+function sortBooks(list) {
+  const made = b => new Date(b.created_at).getTime() || 0
+  const edited = b => new Date(b.updated_at || b.created_at).getTime() || 0
+  const name = (a, b) => (a.title || '').localeCompare(b.title || '', 'id', { sensitivity: 'base', numeric: true })
+
+  const by = (key, dir) => (a, b) => {
+    const x = +a[key] > 0 ? +a[key] : null
+    const y = +b[key] > 0 ? +b[key] : null
+
+    if (x === null && y === null) return name(a, b)
+    if (x === null) return 1
+    if (y === null) return -1
+    return (x - y) * dir || name(a, b)
+  }
+
+  const hot = b => (b.limited && b.stock > 0 ? 1 : 0)
+
+  const sorters = {
+    terbaru: (a, b) => made(b) - made(a),
+    terlama: (a, b) => made(a) - made(b),
+    diubah: (a, b) => edited(b) - edited(a),
+    nama_az: name,
+    nama_za: (a, b) => name(b, a),
+    stok_rendah: (a, b) => (a.stock - b.stock) || name(a, b),
+    stok_tinggi: (a, b) => (b.stock - a.stock) || name(a, b),
+    rilis_baru: by('publish_year', -1),
+    rilis_lama: by('publish_year', 1),
+    hal_sedikit: by('pages', 1),
+    hal_banyak: by('pages', -1),
+    limited: (a, b) => (hot(b) - hot(a)) || made(b) - made(a)
+  }
+
+  return list.sort(sorters[S.bsort] || sorters.terbaru)
 }
 
 function drawGrid() {
@@ -725,6 +813,8 @@ function drawGrid() {
     const matchText = (b.title + ' ' + (b.author || '')).toLowerCase().includes(keyword)
     return matchCategory && matchText
   })
+
+  sortBooks(list)
 
   if (!list.length) {
     $('#grid').innerHTML = '<p class="empty">Belum ada buku yang cocok.</p>'
@@ -743,6 +833,7 @@ function drawGrid() {
       <div class="ci">
         <h3>${esc(b.title)}</h3>
         <p>${esc(b.author)}</p>
+        ${bookMeta(b)}
         ${stockLabel(b)}
       </div>
     </article>`).join('')
@@ -1330,6 +1421,7 @@ async function openBook(id) {
     </div>
     <h2>${esc(b.title)}</h2>
     <p class="hint">${esc(b.author)} · ${esc(b.category)} · ID ${b.id}</p>
+    ${bookFacts(b)}
     <p style="margin-top:.6rem">${esc(b.description) || 'Belum ada deskripsi.'}</p>
     <p class="${b.stock ? 'ok' : 'no'}" style="margin-top:.6rem"><b>${b.stock ? 'Stok tersedia: ' + b.stock + (b.limited ? LIMITED_HTML : '') : 'Stok habis'}</b></p>
     ${durationNote}
@@ -1386,6 +1478,7 @@ function drawPreview() {
         <div class="ci">
           <h3>${esc(f.title.value) || 'Judul buku'}</h3>
           <p>${esc(f.author.value) || 'Penulis'}</p>
+          ${bookMeta({ publish_year: f.year.value, pages: f.pages.value })}
           ${stockLabel({ stock, limited })}
         </div>
       </article>
@@ -1412,6 +1505,14 @@ function bookForm(b = {}) {
       ${field('author', 'Penulis')}
       <select name="category" required>${categoryOptions(b.category, false)}</select>
       <input name="stock" type="number" min="0" placeholder="Stok" value="${b.stock ?? 1}" required>
+      <div class="row2">
+        <label class="hint">Tahun terbit
+          <input name="year" type="number" min="1000" max="${new Date().getFullYear() + 1}" placeholder="mis. 2019" value="${esc(b.publish_year)}">
+        </label>
+        <label class="hint">Jumlah halaman
+          <input name="pages" type="number" min="1" max="10000" placeholder="mis. 320" value="${esc(b.pages)}">
+        </label>
+      </div>
       <label class="check">
         <input type="checkbox" name="limited" ${b.limited ? 'checked' : ''}>
         <span>LIMITED TIME <small class="hint">(label kuning di samping stok)</small></span>
@@ -1905,8 +2006,8 @@ function infoBody(tab) {
     const rows = [
       ['Versi', esc(V.label)],
       //      ['Jumlah commit', V.commits ?? '-'],
-      //      ['Commit terbaru', V.latest ? `${esc(V.latest.sha)} · ${esc(V.latest.msg)} (${fmtDateTime(V.latest.date)})` : '-'],
-      //      ['Repository', GH_ON() ? `<a href="https://github.com/${GITHUB_REPO}" target="_blank" rel="noopener">${GITHUB_REPO}</a>` : 'Belum diatur'],
+      //     ['Commit terbaru', V.latest ? `${esc(V.latest.sha)} · ${esc(V.latest.msg)} (${fmtDateTime(V.latest.date)})` : '-'],
+      //     ['Repository', GH_ON() ? `<a href="https://github.com/${GITHUB_REPO}" target="_blank" rel="noopener">${GITHUB_REPO}</a>` : 'Belum diatur'],
       ['Rilis', esc(RELEASE_ID)],
       ['Tema', esc(document.documentElement.dataset.theme)],
       ['Jumlah buku', S.books.length],
@@ -2166,6 +2267,10 @@ document.addEventListener('input', e => {
     S.cat = e.target.value
     S.page = 1
     drawGrid()
+  } else if (e.target.id === 'bsort') {
+    S.bsort = e.target.value
+    S.page = 1
+    drawGrid()
   } else if (e.target.id === 'pbody') {
     S.draft = e.target.value
   } else if (e.target.id === 'f') {
@@ -2274,6 +2379,8 @@ document.addEventListener('submit', async e => {
       author: data.author,
       category: data.category,
       stock: +data.stock,
+      publish_year: data.year ? +data.year : null,
+      pages: data.pages ? +data.pages : null,
       limited: !!data.limited,
       cover,
       description: data.description,
