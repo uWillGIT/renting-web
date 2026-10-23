@@ -28,11 +28,77 @@ const STATUS = {
   dibatalkan: 'Dibatalkan'
 }
 
+// label pendek untuk tabel admin + urutan alur status (dipakai untuk sort)
+const STATUS_SHORT = {
+  booking: 'Menunggu',
+  approved: 'Disetujui',
+  dipinjam: 'Dipinjam',
+  dikembalikan: 'Dikembalikan',
+  selesai: 'Selesai',
+  ditolak: 'Ditolak',
+  dibatalkan: 'Dibatalkan'
+}
+const STATUS_ORDER = ['booking', 'approved', 'dipinjam', 'dikembalikan', 'selesai', 'ditolak', 'dibatalkan']
+
+const SORTS = [
+  ['status', 'Urutkan: status (perlu tindakan dulu)'],
+  ['terbaru', 'Urutkan: pengajuan terbaru'],
+  ['terlama', 'Urutkan: pengajuan terlama'],
+  ['terlambat', 'Urutkan: terlambat dulu']
+]
+
 const COOLDOWN_CHAT = 5000
 
 // informasi pengambilan buku (ubah di sini jika lokasi berpindah)
-const LOKASI = 'Perpustakaan SMAN 03, di samping Kelas 10.5 | X.5'
+const LOKASI = 'Perpustakaan SMAN 03, di samping Kelas 10.5'
 const CATATAN = 'Temui penjaga perpustakaan untuk mengambil dan mengembalikan buku.'
+
+// akun yang belum punya e-mail asli memakai alamat alias ini (tidak pernah dikirimi e-mail).
+// Supabase menolak domain palsu (tanpa MX record), jadi dipakai domain nyata dengan nama acak.
+// Syarat: "Confirm email" dan "Secure email change" di Supabase harus tetap MATI.
+// jika satu domain ditolak Supabase, domain berikutnya dicoba otomatis
+const ALIAS_DOMAINS = ['gmail.com', 'outlook.com', 'yahoo.com', 'proton.me']
+
+// peminjaman & katalog
+const DEFAULT_DAYS = 5      // durasi tetap; admin bisa menyalakan "Variasi durasi" di Pengaturan admin
+const PER_PAGE = 12         // jumlah buku per halaman katalog
+const LIMITED_HTML = ' - <span class="ltd">LIMITED TIME!</span>'
+
+// versi website = jumlah commit di GitHub (contoh: 25 commit -> "v1.25")
+const GITHUB_REPO = 'OWNER/REPO'    // <-- GANTI, contoh: 'username/pustakakita' (repo harus public)
+const VERSION_MAJOR = 1
+const VERSION_FALLBACK = 'v1.0'     // dipakai jika GitHub tidak bisa dihubungi / repo belum diisi
+const RELEASE_ID = '2026-10-23'     // ganti setiap rilis baru supaya tanda NEW! muncul lagi
+
+// data tab Developer (ubah sesukamu)
+const DEVELOPER = {
+  name: 'Tim Ekskul Coding',
+  role: 'Main Leader: Wildan',
+  contact: '',   // contoh: 'email@contoh.com'
+  link: ''       // contoh: 'https://github.com/username'
+}
+
+// catatan update manual (tampil di tab Update Log, di atas riwayat commit GitHub)
+const CHANGELOG = [
+  {
+    title: 'Pembaruan besar',
+    date: '23 Okt 2026',
+    items: [
+      '[ADMIN] kini tahu siapa admin yang membalas Chat Customer Service dan Pesan.',
+      'Kelola peminjaman: urutkan & filter status, plus waktu pengajuan.',
+      'Bubble angka notifikasi di Chat Customer Service, Pesan, Pinjaman saya, dan Kelola peminjaman.',
+      'Label versi website dari jumlah commit GitHub dan menu Informasi (!).',
+      'Peminjaman yang sudah dikembalikan otomatis ditandai selesai setelah 24 jam.',
+      'User bisa mengajukan pengembalian kapan saja saat sedang meminjam.',
+      'Peringatan tetap di akun (dan e-mail) untuk buku yang terlambat dikembalikan.',
+      'Daftar pesan ala WhatsApp di HP dengan chat layar penuh.',
+      'Durasi pinjam tetap 5 hari; [ADMIN] bisa menyalakan variasi durasi.',
+      'Katalog kini berhalaman.',
+      'Label LIMITED TIME untuk buku tertentu.',
+      'Tombol konfirmasi kustom (Ya / Batal) menggantikan kotak konfirmasi bawaan browser.'
+    ]
+  }
+]
 
 
 /* ---------- 3. STATE ---------- */
@@ -49,14 +115,24 @@ const S = {
   thread: null,    // admin: id user yang sedang dibuka chat-nya
   lastSend: 0,
   chatOpen: false,
-  set: { multi_book: false, multi_rent: false },  // pengaturan admin
+  set: { multi_book: false, multi_rent: false, email_verif: false, duration_var: false },  // pengaturan admin
   chats: [],       // percakapan peminjaman (halaman Pesan)
   cmsgs: [],
   chatSel: null,
   draft: '',
   pLoad: false,    // true saat chat Pesan sedang dimuat ulang
+  authTab: 'username',  // tab form masuk/daftar: 'username' atau 'email'
+  authReg: 0,
+  flow: null,      // langkah kode e-mail yang sedang berjalan
   cancel: null,    // data pembatalan yang sedang diproses
-  reopen: false    // user memulai chat baru setelah diakhiri
+  reopen: false,   // user memulai chat baru setelah diakhiri
+  page: 1,         // halaman katalog
+  sort: 'status',  // urutan tabel Kelola peminjaman
+  sf: '',          // filter status Kelola peminjaman
+  seen: {},        // penanda "sudah dilihat" untuk bubble notifikasi (disimpan per akun di perangkat)
+  pOpen: false,    // mode HP: chat Pesan terbuka layar penuh
+  lastAuto: 0,     // terakhir kali "selesai otomatis" dijalankan
+  infoTab: 'about' // tab menu Informasi
 }
 
 const SPINNER = '<div class="loadwrap"><div class="spinner"></div></div>'
@@ -79,8 +155,40 @@ function fmtTime(d) {
   return new Date(d).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
 }
 
+function fmtDateTime(d) {
+  if (!d) return '-'
+  return new Date(d).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+// hari ini: jam saja; selain itu: tanggal singkat
+function fmtShort(d) {
+  const x = new Date(d)
+  if (x.toDateString() === new Date().toDateString()) return fmtTime(d)
+  return x.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+}
+
 function isLate(loan) {
   return loan.status === 'dipinjam' && new Date(loan.due_at) < new Date()
+}
+
+function daysLate(loan) {
+  return Math.max(1, Math.ceil((Date.now() - new Date(loan.due_at)) / 86400000))
+}
+
+function isMobile() {
+  return matchMedia('(max-width: 700px)').matches
+}
+
+// label stok (+ LIMITED TIME kuning jika buku ditandai limited dan stok masih ada)
+function stockLabel(b) {
+  const limited = b.limited && b.stock > 0 ? LIMITED_HTML : ''
+  return `<em class="${b.stock ? 'ok' : 'no'}">${b.stock ? 'Stok ' + b.stock + limited : 'Stok habis'}</em>`
+}
+
+// nama pengirim pesan. Admin bisa melihat NAMA admin yang membalas; user hanya melihat "Admin".
+function senderLabel(m, isAdmin, userName) {
+  if (!m.from_admin) return esc(userName)
+  return isAdmin && m.sender_name ? 'Admin · ' + esc(m.sender_name) : 'Admin'
 }
 
 function toast(message, isError) {
@@ -99,9 +207,19 @@ function busy(delta) {
 }
 
 function friendlyError(error) {
-  if (error.code === '23505') return 'Kamu sudah booking atau meminjam buku ini'
-  if (/not confirmed/i.test(error.message)) return 'Email belum diverifikasi. Cek kotak masuk emailmu.'
-  return error.message
+  const msg = error.message || ''
+
+  if (error.code === '23505') {
+    return /loans_active_uq/.test(msg)
+      ? 'Kamu sudah booking atau meminjam buku ini'
+      : 'Username atau e-mail itu sudah dipakai'
+  }
+  if (/invalid login credentials/i.test(msg)) return 'Username/e-mail atau kata sandi salah'
+  if (/already (been )?registered/i.test(msg)) return 'E-mail sudah dipakai akun lain'
+  if (/signups not allowed/i.test(msg)) return 'E-mail ini belum terdaftar atau belum terverifikasi'
+  if (/database error saving new user/i.test(msg)) return 'Username atau e-mail sudah dipakai'
+  if (/email address .* is invalid/i.test(msg)) return 'Supabase menolak e-mail: ' + msg
+  return msg
 }
 
 async function run(promise, successMessage) {
@@ -117,6 +235,101 @@ async function run(promise, successMessage) {
   if (successMessage) toast(successMessage)
   return true
 }
+
+
+/* ---------- 4b. DIALOG KONFIRMASI KUSTOM (pengganti confirm() bawaan browser) ---------- */
+// Cara pakai (di dalam fungsi async):
+//   if (!(await ask({ title: 'Hapus?', text: 'Yakin?', yes: 'Ya, hapus', danger: true }))) return
+//
+// Opsi:
+//   title   judul dialog              (default 'Konfirmasi')
+//   text    isi pesan
+//   yes     teks tombol setuju        (default 'Ya')
+//   no      teks tombol batal         (default 'Batal'; isi false untuk menyembunyikannya = dialog info)
+//   danger  true = tombol & ikon merah, fokus awal di tombol batal (aksi berbahaya)
+//   icon    emoji pengganti ikon bawaan
+// Hasil: true jika menekan tombol setuju, false jika batal / Esc / klik di luar kotak.
+let askDone = null     // fungsi resolve milik dialog yang sedang terbuka
+let askFocus = null    // elemen yang fokus sebelum dialog dibuka (dikembalikan saat ditutup)
+
+function ask(options) {
+  const o = typeof options === 'string' ? { text: options } : options
+
+  // jika masih ada dialog terbuka, tutup dulu sebagai "batal"
+  if (askDone) closeAsk(false)
+
+  const noButton = o.no === false
+    ? ''
+    : `<button type="button" class="btn ghost" data-cfm="no">${esc(o.no || 'Batal')}</button>`
+
+  $('#confirm').innerHTML = `
+    <div class="cbox ${o.danger ? 'danger' : ''}" role="alertdialog" aria-modal="true" aria-labelledby="cfm-title" aria-describedby="cfm-text">
+      <div class="cicon" aria-hidden="true">${o.icon || (o.danger ? '⚠️' : '❓')}</div>
+      <h3 id="cfm-title">${esc(o.title || 'Konfirmasi')}</h3>
+      <p id="cfm-text">${esc(o.text)}</p>
+      <div class="cact">
+        ${noButton}
+        <button type="button" class="btn ${o.danger ? 'danger' : ''}" data-cfm="yes">${esc(o.yes || 'Ya')}</button>
+      </div>
+    </div>`
+
+  return new Promise(resolve => {
+    askDone = resolve
+    askFocus = document.activeElement
+    $('#confirm').classList.add('open')
+
+    // aksi berbahaya: fokus awal di "Batal" supaya Enter tidak langsung menghapus
+    const first = o.danger && o.no !== false ? '[data-cfm="no"]' : '[data-cfm="yes"]'
+    setTimeout(() => $('#confirm').querySelector(first)?.focus(), 50)
+  })
+}
+
+function closeAsk(result) {
+  if (!askDone) return
+
+  const done = askDone
+  askDone = null
+  $('#confirm').classList.remove('open')
+
+  try {
+    askFocus?.focus({ preventScroll: true })
+  } catch (e) { }
+  askFocus = null
+
+  done(result)
+}
+
+document.addEventListener('click', e => {
+  if (!askDone) return
+
+  // klik area gelap di luar kotak = batal
+  if (e.target.id === 'confirm') return closeAsk(false)
+
+  const button = e.target.closest('[data-cfm]')
+  if (button) closeAsk(button.dataset.cfm === 'yes')
+})
+
+document.addEventListener('keydown', e => {
+  if (!askDone) return
+
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    return closeAsk(false)
+  }
+
+  // Tab hanya berputar di antara tombol dialog
+  if (e.key === 'Tab') {
+    e.preventDefault()
+
+    const buttons = [...$('#confirm').querySelectorAll('button')]
+    const index = buttons.indexOf(document.activeElement)
+    const next = e.shiftKey
+      ? (index <= 0 ? buttons.length - 1 : index - 1)
+      : (index + 1) % buttons.length
+
+    buttons[next].focus()
+  }
+})
 
 
 /* ---------- 5. TEMA (satu tombol ikon) ---------- */
@@ -188,7 +401,8 @@ function saveAccount(session, profile) {
   const entry = {
     id: session.user.id,
     name: profile.name,
-    email: session.user.email,
+    email: profile.email || '',
+    username: profile.username || '',
     role: profile.role,
     access_token: session.access_token,
     refresh_token: session.refresh_token
@@ -238,19 +452,167 @@ async function forgetAccount(id) {
 }
 
 
+/* ---------- 5c. NOTIFIKASI (bubble angka) ---------- */
+// "Sudah dilihat" disimpan per akun di localStorage perangkat ini.
+// Pesan/pinjaman yang lebih baru dari penanda dihitung sebagai notifikasi baru.
+const seenKey = () => 'seen-' + S.me.id
+
+function loadSeen() {
+  try {
+    S.seen = JSON.parse(localStorage.getItem(seenKey())) || {}
+  } catch (e) {
+    S.seen = {}
+  }
+}
+
+function setSeen(key, value) {
+  if (S.seen[key] === value) return
+  S.seen[key] = value
+
+  try {
+    localStorage.setItem(seenKey(), JSON.stringify(S.seen))
+  } catch (e) { }
+}
+
+function isNew(key, time) {
+  const seen = S.seen[key]
+  return !seen || new Date(time) > new Date(seen)
+}
+
+function lastTime(list) {
+  return list.length ? list[list.length - 1].created_at : null
+}
+
+const loanSig = l => l.status + (isLate(l) ? '!' : '')
+
+// pesan Chat Customer Service yang belum dibaca
+function csUnread() {
+  if (!S.me) return 0
+  const isAdmin = S.me.role === 'admin'
+
+  return S.msgs.filter(m =>
+    !m.ended && m.from_admin !== isAdmin && isNew('cs:' + m.user_id, m.created_at)
+  ).length
+}
+
+function unreadIn(chatId) {
+  const isAdmin = S.me.role === 'admin'
+
+  return S.cmsgs.filter(m =>
+    m.chat_id === chatId && !m.sys && m.from_admin !== isAdmin && isNew('pc:' + chatId, m.created_at)
+  ).length
+}
+
+// pesan peminjaman yang belum dibaca (semua chat yang tidak disembunyikan)
+function pesanUnread() {
+  if (!S.me) return 0
+  const isAdmin = S.me.role === 'admin'
+
+  return S.chats
+    .filter(c => isAdmin ? !c.hidden_admin : !c.hidden_user)
+    .reduce((sum, c) => sum + unreadIn(c.id), 0)
+}
+
+// user: terlambat (tetap ada sampai buku dikembalikan) + perubahan status baru dari admin
+function sayaCount() {
+  const late = S.mine.filter(isLate).length
+
+  const changed = S.mine.filter(l =>
+    !isLate(l) && !['booking', 'dibatalkan'].includes(l.status) && S.seen['loan:' + l.id] !== loanSig(l)
+  ).length
+
+  return late + changed
+}
+
+// admin: booking menunggu + permintaan pengembalian dari user
+function adminCount() {
+  return S.all.filter(l => l.status === 'booking' || (l.status === 'dipinjam' && l.return_requested_at)).length
+}
+
+function markSayaSeen() {
+  S.mine.forEach(l => setSeen('loan:' + l.id, loanSig(l)))
+}
+
+// pertama kali di perangkat ini: anggap semua yang sudah ada sebagai "sudah dilihat"
+function initSeen() {
+  if (!S.me || S.seen._init) return
+
+  S.msgs.forEach(m => setSeen('cs:' + m.user_id, m.created_at))
+  S.cmsgs.forEach(m => setSeen('pc:' + m.chat_id, m.created_at))
+  markSayaSeen()
+  setSeen('_init', 1)
+  refreshBadges()
+}
+
+function nb(n) {
+  return n > 0 ? `<i class="nb">${n > 99 ? '99+' : n}</i>` : ''
+}
+
+function renderNav() {
+  const me = S.me
+  const isAdmin = me?.role === 'admin'
+
+  const menu = [['katalog', 'Katalog', 0]]
+  if (me && !isAdmin) menu.push(['saya', 'Pinjaman saya', sayaCount()])
+  if (me) menu.push(['pesan', 'Pesan', pesanUnread()])
+  if (isAdmin) menu.push(['admin', 'Kelola peminjaman', adminCount()], ['pengaturan', 'Pengaturan admin', 0])
+
+  $('#nav').innerHTML = menu
+    .map(([key, label, n]) => `<button class="${S.view === key ? 'on' : ''}" data-v="${key}">${label}${nb(n)}</button>`)
+    .join('')
+}
+
+// peringatan tetap untuk user yang terlambat mengembalikan buku
+function drawAlerts() {
+  const box = $('#alerts')
+  if (!box) return
+
+  const late = S.me && S.me.role !== 'admin' ? S.mine.filter(isLate) : []
+  box.hidden = !late.length
+
+  box.innerHTML = late.length
+    ? `<div class="alertbar">
+         <span>⚠️ Kamu terlambat mengembalikan ${late.length > 1 ? late.length + ' buku' : 'buku'}:
+           <b>${late.map(l => `${esc(l.books?.title)} (${daysLate(l)} hari)`).join(', ')}</b>.
+           Segera kembalikan ke perpustakaan.</span>
+         <button class="btn sm" data-v="saya">Lihat</button>
+       </div>`
+    : ''
+}
+
+function refreshBadges() {
+  renderNav()
+  drawAlerts()
+
+  const n = csUnread()
+  const badge = $('#bubble-nb')
+
+  if (badge) {
+    badge.textContent = n > 99 ? '99+' : n
+    badge.hidden = n <= 0
+  }
+}
+
+
 /* ---------- 6. AMBIL DATA ---------- */
 async function loadData(animate) {
   const books = await db.from('books').select('*').order('created_at', { ascending: false })
   S.books = books.data || []
 
   const settings = await db.from('settings').select('*')
-  S.set = { multi_book: false, multi_rent: false }
+  S.set = { multi_book: false, multi_rent: false, email_verif: false, duration_var: false }
     ; (settings.data || []).forEach(row => { S.set[row.key] = row.value })
 
   S.mine = []
   S.all = []
 
   if (S.me) {
+    // peminjaman yang sudah dikembalikan > 24 jam otomatis jadi "selesai" (dicek tiap 5 menit)
+    if (Date.now() - S.lastAuto > 300000) {
+      S.lastAuto = Date.now()
+      await db.rpc('auto_finish_loans')
+    }
+
     const fields = '*,books(title),profiles(name)'
 
     // peminjaman milik sendiri (disaring berdasarkan user_id)
@@ -279,6 +641,7 @@ async function loadChat() {
   S.msgs = data || []
 
   if (S.chatOpen) drawChat()
+  refreshBadges()
 }
 
 
@@ -300,6 +663,7 @@ async function loadPesan(showSpinner) {
   S.pLoad = false
 
   if (S.view === 'pesan') drawPesan()
+  refreshBadges()
 }
 
 
@@ -308,18 +672,12 @@ function render(animate) {
   const me = S.me
   const isAdmin = me?.role === 'admin'
 
-  const menu = [['katalog', 'Katalog']]
-  if (me && !isAdmin) menu.push(['saya', 'Pinjaman saya'])
-  if (me) menu.push(['pesan', 'Pesan'])
-  if (isAdmin) menu.push(['admin', 'Kelola peminjaman'], ['pengaturan', 'Pengaturan admin'])
-
-  $('#nav').innerHTML = menu
-    .map(([key, label]) => `<button class="${S.view === key ? 'on' : ''}" data-v="${key}">${label}</button>`)
-    .join('')
+  // membuka "Pinjaman saya" = perubahan status dianggap sudah dilihat
+  if (S.view === 'saya' && me) markSayaSeen()
 
   $('#auth').innerHTML = me
     ? `<button class="who" data-accounts title="Akun di perangkat ini">
-         <span class="ava">${esc(me.name[0] || '?').toUpperCase()}</span>
+         <span class="ava">${esc(me.name[0] || '?').toUpperCase()}${!S.set.email_verif || me.email_verified ? '' : '<i class="warn" title="E-mail belum diverifikasi">!</i>'}</span>
          ${esc(me.name)}${isAdmin ? ' <b class="chip">admin</b>' : ''}
        </button>`
     : `<button class="btn" data-accounts>Masuk / Daftar</button>`
@@ -334,6 +692,9 @@ function render(animate) {
 
   // gelembung chat hanya untuk yang sudah login
   $('#bubble').hidden = !me
+
+  // menu (dengan bubble angka), peringatan terlambat, bubble chat
+  refreshBadges()
 }
 
 function categoryOptions(selected, withAll) {
@@ -352,7 +713,8 @@ function viewKatalog() {
       <select id="cat">${categoryOptions(S.cat, true)}</select>
       ${addButton}
     </div>
-    <div class="grid" id="grid"></div>`
+    <div class="grid" id="grid"></div>
+    <div class="pager" id="pager"></div>`
 }
 
 function drawGrid() {
@@ -366,18 +728,55 @@ function drawGrid() {
 
   if (!list.length) {
     $('#grid').innerHTML = '<p class="empty">Belum ada buku yang cocok.</p>'
+    drawPager(0, 0)
     return
   }
 
-  $('#grid').innerHTML = list.map(b => `
+  // halaman katalog
+  const pages = Math.ceil(list.length / PER_PAGE)
+  S.page = Math.min(Math.max(S.page, 1), pages)
+  const start = (S.page - 1) * PER_PAGE
+
+  $('#grid').innerHTML = list.slice(start, start + PER_PAGE).map(b => `
     <article class="card" data-card="${b.id}">
       <div class="cover">📖${b.cover ? `<img src="${esc(b.cover)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
       <div class="ci">
         <h3>${esc(b.title)}</h3>
         <p>${esc(b.author)}</p>
-        <em class="${b.stock ? 'ok' : 'no'}">${b.stock ? 'Stok ' + b.stock : 'Stok habis'}</em>
+        ${stockLabel(b)}
       </div>
     </article>`).join('')
+
+  drawPager(pages, list.length)
+}
+
+function drawPager(pages, total) {
+  const el = $('#pager')
+  if (!el) return
+
+  if (pages <= 1) {
+    el.innerHTML = ''
+    return
+  }
+
+  // tampilkan halaman 1, terakhir, dan sekitar halaman aktif
+  const show = []
+  for (let i = 1; i <= pages; i++) {
+    if (i === 1 || i === pages || Math.abs(i - S.page) <= 1) show.push(i)
+  }
+
+  let html = `<button data-page="${S.page - 1}" ${S.page === 1 ? 'disabled' : ''} aria-label="Halaman sebelumnya">‹</button>`
+  let prev = 0
+
+  show.forEach(i => {
+    if (i - prev > 1) html += '<span class="gap">…</span>'
+    html += `<button class="${i === S.page ? 'on' : ''}" data-page="${i}">${i}</button>`
+    prev = i
+  })
+
+  html += `<button data-page="${S.page + 1}" ${S.page === pages ? 'disabled' : ''} aria-label="Halaman berikutnya">›</button>`
+  html += `<span class="hint pginfo">Halaman ${S.page} dari ${pages} · ${total} buku</span>`
+  el.innerHTML = html
 }
 
 function viewSaya() {
@@ -387,17 +786,23 @@ function viewSaya() {
 
   return S.mine.map(l => {
     const showCode = ['approved', 'dipinjam'].includes(l.status)
-    const dueText = l.due_at ? `, jatuh tempo ${fmtDate(l.due_at)}${isLate(l) ? ' (terlambat)' : ''}` : ''
+    const late = isLate(l)
+    const asked = l.status === 'dipinjam' && l.return_requested_at
+    const dueText = l.due_at ? `, jatuh tempo ${fmtDate(l.due_at)}${late ? ` (terlambat ${daysLate(l)} hari)` : ''}` : ''
 
     return `
-      <div class="loan">
+      <div class="loan ${late ? 'overdue' : ''}">
         <div>
           <h3>${esc(l.books?.title)}</h3>
           <span class="chip s-${l.status}">${STATUS[l.status]}</span>
-          <p class="${isLate(l) ? 'late' : ''}">Durasi ${l.days} hari${dueText}</p>
+          ${asked ? '<span class="chip s-req">Pengembalian diajukan</span>' : ''}
+          <p class="${late ? 'late' : ''}">Durasi ${l.days} hari${dueText}</p>
+          ${late ? '<p class="late">Segera kembalikan buku ke perpustakaan.</p>' : ''}
+          ${asked ? `<p>Diajukan ${fmtDateTime(l.return_requested_at)}. Antar bukunya ke perpustakaan, admin akan mengonfirmasi.</p>` : ''}
         </div>
         ${showCode ? `<div class="code"><small>Tunjukkan kode ke petugas</small><b>${l.code}</b></div>` : ''}
         ${l.status === 'booking' ? `<button class="btn ghost sm" data-cancel="${l.id}">Batalkan</button>` : ''}
+        ${l.status === 'dipinjam' && !asked ? `<button class="btn sm" data-reqret="${l.id}">Ajukan pengembalian</button>` : ''}
         ${showCode ? `
           <div class="lokasi">
             <span class="pin">📍</span>
@@ -412,21 +817,30 @@ function viewSaya() {
 
 function viewAdmin() {
   const count = status => S.all.filter(l => l.status === status).length
+  const asked = S.all.filter(l => l.status === 'dipinjam' && l.return_requested_at).length
 
   return `
     <div class="stats">
       <div><b>${count('booking')}</b>Menunggu</div>
       <div><b>${count('approved')}</b>Siap diambil</div>
       <div><b>${count('dipinjam')}</b>Dipinjam</div>
+      <div><b>${asked}</b>Minta dikembalikan</div>
       <div><b>${S.all.filter(isLate).length}</b>Terlambat</div>
     </div>
     <div class="bar">
       <input id="f" placeholder="Cari kode, nama peminjam, atau judul" value="${esc(S.f)}">
+      <select id="sortby" aria-label="Urutkan">
+        ${SORTS.map(([key, label]) => `<option value="${key}" ${S.sort === key ? 'selected' : ''}>${label}</option>`).join('')}
+      </select>
+      <select id="sfilter" aria-label="Filter status">
+        <option value="">Semua status</option>
+        ${STATUS_ORDER.map(key => `<option value="${key}" ${S.sf === key ? 'selected' : ''}>${STATUS_SHORT[key]}</option>`).join('')}
+      </select>
     </div>
     <div class="tw">
       <table>
         <thead>
-          <tr><th>Kode</th><th>Peminjam</th><th>Buku</th><th>Durasi</th><th>Status</th><th>Aksi</th></tr>
+          <tr><th>Kode</th><th>Peminjam</th><th>Buku</th><th>Diajukan</th><th>Durasi</th><th>Status</th><th>Aksi</th></tr>
         </thead>
         <tbody id="rows"></tbody>
       </table>
@@ -444,7 +858,10 @@ function viewPengaturan() {
     <h2 style="margin-bottom:.4rem">Pengaturan admin</h2>
     <p class="hint" style="margin-bottom:1rem">Berlaku untuk semua user. Jika keduanya mati (default), user hanya bisa meminjam satu buku sampai buku itu dikembalikan.</p>
     ${toggle('multi_book', 'Booking banyak buku sekaligus', 'Mati: user hanya boleh punya satu booking aktif.')}
-    ${toggle('multi_rent', 'Meminjam banyak buku sekaligus', 'Mati: user hanya boleh meminjam satu buku sampai dikembalikan.')}`
+    ${toggle('multi_rent', 'Meminjam banyak buku sekaligus', 'Mati: user hanya boleh meminjam satu buku sampai dikembalikan.')}
+    ${toggle('duration_var', 'Variasi durasi meminjam buku', `Hidup: user bisa memilih durasi (3, 5, 7, 14 hari, atau custom). Mati (default): durasi tetap ${DEFAULT_DAYS} hari dan buku bisa dikembalikan kapan saja.`)}
+    <h3 style="margin:1.2rem 0 .6rem">Akun</h3>
+    ${toggle('email_verif', 'Verifikasi E-mail', 'Hidup: user bisa menambah/memverifikasi e-mail, mereset kata sandi, dan mengganti username. Mati (default): semua fitur itu disembunyikan.')}`
 }
 
 function viewPesan() {
@@ -466,44 +883,92 @@ function viewPesan() {
     </div>`
 }
 
+// awalan pratinjau pesan terakhir di daftar chat
+function previewPrefix(m, isAdmin) {
+  if (isAdmin) {
+    if (!m.from_admin) return ''
+    return (m.sender_name && m.sender_name !== S.me.name ? m.sender_name : 'Kamu') + ': '
+  }
+  return m.from_admin ? '' : 'Kamu: '
+}
+
 function drawPesan() {
   if (!$('#plist')) return
 
   const isAdmin = S.me.role === 'admin'
+  const mobile = isMobile()
   const chats = S.chats.filter(c => isAdmin ? !c.hidden_admin : !c.hidden_user)
 
   if (!chats.some(c => c.id === S.chatSel)) S.chatSel = chats[0]?.id || null
   const cur = chats.find(c => c.id === S.chatSel)
+  if (!cur) S.pOpen = false
 
+  const msgsOf = id => S.cmsgs.filter(m => m.chat_id === id)
+
+  // daftar percakapan (gaya WhatsApp): judul, pratinjau, jam, jumlah belum dibaca
   $('#plist').innerHTML = chats.length
-    ? chats.map(c => `
-        <button class="${c.id === S.chatSel ? 'on' : ''}" data-pchat="${c.id}">
-          <b>${esc(c.loans?.books?.title)}</b>
-          <small>${isAdmin ? esc(c.profiles?.name) : 'Admin perpustakaan'}${c.ended ? ' · berakhir' : ''}</small>
-        </button>`).join('')
+    ? chats.map(c => {
+      const last = [...msgsOf(c.id)].reverse().find(m => !m.sys)
+      const who = isAdmin ? (c.profiles?.name || '?') : 'Admin perpustakaan'
+
+      return `
+        <button class="pitem ${c.id === S.chatSel ? 'on' : ''}" data-pchat="${c.id}">
+          <span class="ava">${esc(who[0] || '?').toUpperCase()}</span>
+          <div class="pi">
+            <div class="pr"><b>${esc(c.loans?.books?.title)}</b><small>${last ? fmtShort(last.created_at) : ''}</small></div>
+            <div class="pr">
+              <span class="pp">${esc(who)}${c.ended ? ' · berakhir' : ''}${last ? ' · ' + esc(previewPrefix(last, isAdmin) + last.body) : ''}</span>
+              ${nb(unreadIn(c.id))}
+            </div>
+          </div>
+        </button>`
+    }).join('')
     : '<p class="hint">Belum ada pesan. Chat dibuat otomatis saat admin menyetujui bookingmu.</p>'
 
+  const list = cur ? msgsOf(cur.id) : []
+
+  // admin: lihat siapa admin yang terakhir membalas
+  let replyInfo = ''
+  if (cur && isAdmin) {
+    const reply = [...list].reverse().find(m => m.from_admin && !m.sys)
+    replyInfo = reply
+      ? ` · dibalas terakhir oleh <b>${esc(reply.sender_name || 'admin')}</b>`
+      : ' · belum dibalas'
+  }
+
   $('#phead').innerHTML = cur
-    ? `<div><b>${esc(cur.loans?.books?.title)}</b> <small class="hint">Kode ${esc(cur.loans?.code)}</small></div>
+    ? `<button class="back" data-pback aria-label="Kembali ke daftar pesan">←</button>
+       <div class="ptitle">
+         <b>${esc(cur.loans?.books?.title)}</b>
+         <small class="hint">${isAdmin ? esc(cur.profiles?.name) + ' · ' : ''}Kode ${esc(cur.loans?.code)}${replyInfo}</small>
+       </div>
        ${isAdmin && !cur.ended ? `<button class="btn danger sm" data-pend="${cur.id}">Akhiri percakapan</button>` : ''}`
     : ''
+
+  // mode HP: chat dibuka layar penuh setelah salah satu percakapan diklik
+  $('.pesan').classList.toggle('open', mobile && S.pOpen && !!cur)
+
+  // chat yang sedang terlihat dianggap sudah dibaca
+  if (cur && (!mobile || S.pOpen)) {
+    const latest = lastTime(list)
+    if (latest) setSeen('pc:' + cur.id, latest)
+  }
 
   $('#pf').hidden = !cur || cur.ended
   $('#pend').hidden = !(cur && cur.ended)
   $('#pbody').value = S.draft
-
-  const list = S.cmsgs.filter(m => m.chat_id === S.chatSel)
 
   $('#pmsgs').innerHTML = S.pLoad ? SPINNER : cur
     ? list.map(m => m.sys
       ? `<div class="sys">${esc(m.body)}</div>`
       : `<div class="msg ${m.from_admin === isAdmin ? 'me' : ''}">
             ${esc(m.body)}
-            <small>${m.from_admin ? 'Admin' : esc(cur.profiles?.name)}, ${fmtTime(m.created_at)}</small>
+            <small>${senderLabel(m, isAdmin, cur.profiles?.name)}, ${fmtTime(m.created_at)}</small>
           </div>`).join('')
     : '<p class="hint">Pilih percakapan di samping.</p>'
 
   $('#pmsgs').scrollTop = $('#pmsgs').scrollHeight
+  refreshBadges()
 }
 
 async function sendPesan(form) {
@@ -513,6 +978,7 @@ async function sendPesan(form) {
   const ok = await run(db.from('loan_msgs').insert({
     chat_id: S.chatSel,
     from_admin: S.me.role === 'admin',
+    sender_name: S.me.name,
     body
   }))
 
@@ -524,13 +990,33 @@ async function sendPesan(form) {
 }
 
 async function endPesan(id) {
-  if (!confirm('Akhiri percakapan ini? Setelah diakhiri tidak ada yang bisa mengirim pesan lagi.')) return
+  const yes = await ask({
+    title: 'Akhiri percakapan?',
+    text: 'Setelah diakhiri tidak ada yang bisa mengirim pesan lagi.',
+    yes: 'Ya, akhiri',
+    no: 'Batal',
+    danger: true
+  })
+  if (!yes) return
+
   if (await run(db.from('loan_chats').update({ ended: true }).eq('id', id), 'Percakapan diakhiri')) loadPesan()
 }
 
 async function hidePesan() {
-  if (!confirm('Hapus chat ini dari daftarmu? Pihak lain tetap bisa melihatnya.')) return
-  if (await run(db.rpc('hide_loan_chat', { cid: S.chatSel }), 'Chat dihapus dari daftarmu')) loadPesan()
+  const yes = await ask({
+    title: 'Hapus chat dari daftarmu?',
+    text: 'Pihak lain tetap bisa melihat percakapan ini.',
+    yes: 'Ya, hapus',
+    no: 'Batal',
+    danger: true,
+    icon: '🗑️'
+  })
+  if (!yes) return
+
+  if (await run(db.rpc('hide_loan_chat', { cid: S.chatSel }), 'Chat dihapus dari daftarmu')) {
+    S.pOpen = false
+    loadPesan()
+  }
 }
 
 function drawRows() {
@@ -546,12 +1032,30 @@ function drawRows() {
     dikembalikan: id => button('selesai', id, 'Tandai selesai')
   }
 
-  const list = S.all.filter(l =>
-    (l.code + ' ' + l.profiles?.name + ' ' + l.books?.title).toLowerCase().includes(keyword)
-  )
+  // urutan "status": yang perlu tindakan di atas; terlambat & minta dikembalikan didahulukan
+  const rank = l => {
+    let r = STATUS_ORDER.indexOf(l.status)
+    if (l.status === 'dipinjam') {
+      if (isLate(l)) r -= 0.6
+      else if (l.return_requested_at) r -= 0.3
+    }
+    return r
+  }
+
+  const newest = (a, b) => new Date(b.created_at) - new Date(a.created_at)
+
+  const list = S.all
+    .filter(l => !S.sf || l.status === S.sf)
+    .filter(l => (l.code + ' ' + l.profiles?.name + ' ' + l.books?.title).toLowerCase().includes(keyword))
+    .sort((a, b) => {
+      if (S.sort === 'terbaru') return newest(a, b)
+      if (S.sort === 'terlama') return newest(b, a)
+      if (S.sort === 'terlambat') return (isLate(b) - isLate(a)) || (rank(a) - rank(b)) || newest(a, b)
+      return (rank(a) - rank(b)) || newest(a, b)
+    })
 
   if (!list.length) {
-    $('#rows').innerHTML = '<tr><td colspan="6">Belum ada data.</td></tr>'
+    $('#rows').innerHTML = '<tr><td colspan="7">Belum ada data.</td></tr>'
     return
   }
 
@@ -560,9 +1064,12 @@ function drawRows() {
       <td><b>${l.code}</b></td>
       <td>${esc(l.profiles?.name)}</td>
       <td>${esc(l.books?.title)}</td>
+      <td>${fmtDateTime(l.created_at)}</td>
       <td>${l.days} hari</td>
       <td>
-        <span class="chip s-${l.status}">${l.status}</span>
+        <span class="chip s-${l.status}">${STATUS_SHORT[l.status] || l.status}</span>
+        ${l.status === 'dipinjam' && l.return_requested_at ? `<br><small class="hint">📥 Minta dikembalikan, ${fmtDateTime(l.return_requested_at)}</small>` : ''}
+        ${l.status === 'dikembalikan' && l.returned_at ? `<br><small class="hint">Otomatis selesai ${fmtDateTime(+new Date(l.returned_at) + 86400000)}</small>` : ''}
         ${l.cancel_reason ? `<br><small class="hint">Alasan: ${esc(l.cancel_reason)}</small>` : ''}
         ${isLate(l) ? '<b class="late">terlambat</b>' : ''}
       </td>
@@ -571,7 +1078,7 @@ function drawRows() {
 }
 
 
-/* ---------- 8. CHAT CS (jendela kecil di pojok kanan bawah) ---------- */
+/* ---------- 8. CHAT CUSTOMER SERVICE (jendela kecil di pojok kanan bawah) ---------- */
 function setChat(open) {
   S.chatOpen = open
   $('#chatw').classList.toggle('open', open)
@@ -615,10 +1122,27 @@ function drawChat() {
   const last = list[list.length - 1]
   const ended = !!last?.ended && !(S.reopen && !isAdmin)
 
+  // percakapan yang sedang terbuka dianggap sudah dibaca
+  if (last) setSeen('cs:' + currentThread(), last.created_at)
+
+  // admin: lihat siapa admin yang terakhir membalas percakapan ini
+  const info = $('#cinfo')
+  if (isAdmin && list.length) {
+    const reply = [...list].reverse().find(m => m.from_admin && !m.ended)
+    info.hidden = false
+    info.innerHTML = reply
+      ? `Terakhir dibalas oleh <b>${esc(reply.sender_name || 'admin')}</b>, ${fmtTime(reply.created_at)}`
+      : 'Belum dibalas admin'
+  } else {
+    info.hidden = true
+  }
+
   $('#cf').hidden = ended
   $('#cend').hidden = !list.length || ended
   $('#cnew').hidden = !ended
   $('#cnew button').hidden = isAdmin
+
+  refreshBadges()
 
   if (!list.length) {
     box.innerHTML = `<p class="hint">${isAdmin ? 'Belum ada pesan masuk.' : 'Tanyakan apa saja soal buku atau peminjaman. Admin akan membalas di sini.'}</p>`
@@ -630,7 +1154,7 @@ function drawChat() {
     : `<div class="msg ${m.from_admin === isAdmin ? 'me' : ''}">
         ${m.image ? `<a href="${esc(m.image)}" target="_blank" rel="noopener"><img src="${esc(m.image)}" alt="Gambar kiriman"></a>` : ''}
         ${esc(m.body)}
-        <small>${m.from_admin ? 'Admin' : esc(m.profiles?.name)}, ${fmtTime(m.created_at)}</small>
+        <small>${senderLabel(m, isAdmin, m.profiles?.name)}, ${fmtTime(m.created_at)}</small>
       </div>`).join('')
 
   box.scrollTop = box.scrollHeight
@@ -681,6 +1205,7 @@ async function sendChat(form) {
   const ok = await run(db.from('messages').insert({
     user_id: threadId,
     sender_id: S.me.id,
+    sender_name: S.me.name,
     from_admin: isAdmin,
     body,
     image
@@ -772,16 +1297,25 @@ async function openBook(id) {
       <button class="btn" data-edit="${b.id}">Edit</button>
       <button class="btn danger" data-del="${b.id}">Hapus</button>`
   } else {
+    // durasi: tetap 5 hari, kecuali admin menyalakan "Variasi durasi"
+    const duration = S.set.duration_var
+      ? `<select id="days" aria-label="Lama pinjam">
+           <option value="3">3 hari</option>
+           <option value="5" selected>5 hari</option>
+           <option value="7">7 hari</option>
+           <option value="14">14 hari</option>
+           <option value="custom">Custom</option>
+         </select>
+         <input id="custom" type="number" min="1" max="28" placeholder="1-28 hari" hidden>`
+      : ''
+
     actions = `
-      <select id="days" aria-label="Lama pinjam">
-        <option value="3">3 hari</option>
-        <option value="7" selected>7 hari</option>
-        <option value="14">14 hari</option>
-        <option value="custom">Custom</option>
-      </select>
-      <input id="custom" type="number" min="1" max="28" placeholder="1-28 hari" hidden>
+      ${duration}
       <button class="btn" data-book="${b.id}" ${canBook ? '' : 'disabled'}>Booking buku</button>`
   }
+
+  const durationNote = me?.role === 'admin' ? '' : `
+    <p class="hint durnote">⏱️ ${S.set.duration_var ? 'Pilih lama pinjam sesukamu.' : `Durasi pinjam ${DEFAULT_DAYS} hari.`} Buku bisa dikembalikan kapan saja.</p>`
 
   modal(`
     <div class="stage" data-i="0" data-n="${images.length}">
@@ -797,14 +1331,17 @@ async function openBook(id) {
     <h2>${esc(b.title)}</h2>
     <p class="hint">${esc(b.author)} · ${esc(b.category)} · ID ${b.id}</p>
     <p style="margin-top:.6rem">${esc(b.description) || 'Belum ada deskripsi.'}</p>
-    <p class="${b.stock ? 'ok' : 'no'}" style="margin-top:.6rem"><b>${b.stock ? 'Stok tersedia: ' + b.stock : 'Stok habis'}</b></p>
+    <p class="${b.stock ? 'ok' : 'no'}" style="margin-top:.6rem"><b>${b.stock ? 'Stok tersedia: ' + b.stock + (b.limited ? LIMITED_HTML : '') : 'Stok habis'}</b></p>
+    ${durationNote}
     <div class="act">${actions}</div>
     <p class="hint" style="margin-top:.6rem">${note}</p>`)
 }
 
 function readDays() {
-  const value = $('#days').value
-  if (value !== 'custom') return +value
+  const select = $('#days')
+  if (!select) return DEFAULT_DAYS   // variasi durasi mati: selalu tetap
+
+  if (select.value !== 'custom') return +select.value
 
   const n = parseInt($('#custom').value, 10)
   return n >= 1 && n <= 28 ? n : null
@@ -839,6 +1376,7 @@ function drawPreview() {
   const cover = pv.cover || f.cover.value.trim()
   const slides = f.slides.value.split('\n').map(s => s.trim()).filter(Boolean).concat(pv.slides)
   const stock = +f.stock.value
+  const limited = f.limited && f.limited.checked
 
   $('#bprev').innerHTML = `
     <p class="hint">Pratinjau (seperti tampilan di katalog)</p>
@@ -848,7 +1386,7 @@ function drawPreview() {
         <div class="ci">
           <h3>${esc(f.title.value) || 'Judul buku'}</h3>
           <p>${esc(f.author.value) || 'Penulis'}</p>
-          <em class="${stock > 0 ? 'ok' : 'no'}">${stock > 0 ? 'Stok ' + stock : 'Stok habis'}</em>
+          ${stockLabel({ stock, limited })}
         </div>
       </article>
       <div class="prev-slides">
@@ -874,6 +1412,10 @@ function bookForm(b = {}) {
       ${field('author', 'Penulis')}
       <select name="category" required>${categoryOptions(b.category, false)}</select>
       <input name="stock" type="number" min="0" placeholder="Stok" value="${b.stock ?? 1}" required>
+      <label class="check">
+        <input type="checkbox" name="limited" ${b.limited ? 'checked' : ''}>
+        <span>LIMITED TIME <small class="hint">(label kuning di samping stok)</small></span>
+      </label>
       ${field('cover', 'URL thumbnail (gambar sampul)')}
       <label class="hint">Atau unggah file thumbnail (maks. 2 MB)
         <input type="file" name="coverfile" accept="image/*">
@@ -890,20 +1432,33 @@ function bookForm(b = {}) {
 }
 
 function authForm(isRegister) {
+  S.authReg = isRegister
+  const tab = S.authTab
+
+  const tabs = [['username', 'Username'], ['email', 'E-mail']]
+    .map(([key, label]) => `<button type="button" class="${tab === key ? 'on' : ''}" data-atab="${key}">${label}</button>`)
+    .join('')
+
+  const fields = tab === 'username'
+    ? '<input name="username" placeholder="Username" maxlength="20" autocomplete="username" required>'
+    : `${isRegister ? '<input name="name" placeholder="Nama lengkap" required>' : ''}
+       <input name="email" type="email" placeholder="E-mail" autocomplete="email" required>`
+
   modal(`
     <h2>${isRegister ? 'Daftar akun' : 'Masuk'}</h2>
-    <form id="af" data-reg="${isRegister}">
-      ${isRegister ? '<input name="name" placeholder="Nama lengkap" required>' : ''}
-      <input name="email" type="email" placeholder="Email" required>
-      <input name="password" type="password" minlength="6" placeholder="Kata sandi (min. 6 karakter)" required>
+    <div class="tabs">${tabs}</div>
+    <form id="af" data-reg="${isRegister}" data-tab="${tab}">
+      ${fields}
+      <input name="password" type="password" minlength="6" placeholder="Kata sandi (min. 6 karakter)" autocomplete="${isRegister ? 'new-password' : 'current-password'}" required>
       <button class="btn">${isRegister ? 'Daftar' : 'Masuk'}</button>
     </form>
-    <p class="hint">
+    ${isRegister && tab === 'username' ? '<p class="hint" style="margin-top:.6rem">Tanpa e-mail. Nanti kamu bisa menambahkan e-mail untuk mereset kata sandi.</p>' : ''}
+    ${isRegister || !S.set.email_verif ? '' : '<p class="hint" style="margin-top:.6rem"><a href="#" data-forgot>Lupa kata sandi?</a></p>'}
+    <p class="hint" style="margin-top:.4rem">
       ${isRegister ? 'Sudah punya akun?' : 'Belum punya akun?'}
       <a href="#" data-auth="${isRegister ? 0 : 1}">${isRegister ? 'Masuk' : 'Daftar'}</a>
     </p>`)
 }
-
 
 function openAccounts() {
   const saved = loadSaved()
@@ -916,13 +1471,14 @@ function openAccounts() {
       <span class="ava">${esc(a.name[0] || '?').toUpperCase()}</span>
       <div>
         <b>${esc(a.name)}</b>
-        <small>${esc(a.email)} · ${a.role === 'admin' ? 'admin' : 'user'}</small>
+        <small>${a.username ? '@' + esc(a.username) : esc(a.email || 'tanpa e-mail')} · ${a.role === 'admin' ? 'admin' : 'user'}</small>
       </div>
       ${a.id === S.me?.id ? '<span class="chip">aktif</span>' : ''}
       <button class="forget" data-forget="${a.id}" title="Hapus dari perangkat ini">✕</button>
     </div>`).join('')
 
   modal(`
+    ${accountMenu()}
     <h2>Akun di perangkat ini</h2>
     <p class="hint" style="margin-bottom:.8rem">Ketuk akun untuk berpindah tanpa mengisi email dan kata sandi lagi.</p>
     ${rows}
@@ -967,19 +1523,439 @@ function cancelStep2() {
 }
 
 async function endChat() {
-  if (!currentThread() || !confirm('Akhiri percakapan ini?')) return
+  if (!currentThread()) return
+
+  const yes = await ask({
+    title: 'Akhiri percakapan?',
+    text: 'Setelah diakhiri, pesan baru hanya bisa dikirim dengan memulai percakapan baru.',
+    yes: 'Ya, akhiri',
+    no: 'Batal',
+    danger: true
+  })
+  if (!yes) return
 
   const isAdmin = S.me.role === 'admin'
 
   const ok = await run(db.from('messages').insert({
     user_id: currentThread(),
     sender_id: S.me.id,
+    sender_name: S.me.name,
     from_admin: isAdmin,
     ended: true,
     body: 'Percakapan diakhiri oleh ' + (isAdmin ? 'admin' : 'pengguna')
   }))
 
   if (ok) await loadChat()
+}
+
+
+/* ---------- 9b. AKUN: username, e-mail, verifikasi kode ---------- */
+const USERNAME_RE = /^[a-z0-9_]{3,20}$/
+
+function makeAlias(domain) {
+  return 'u' + crypto.randomUUID().replace(/-/g, '').slice(0, 16) + '@' + domain
+}
+
+// masuk atau daftar lewat tab Username / E-mail
+async function authenticate(isRegister, tab, ident, data) {
+  if (tab === 'username' && !USERNAME_RE.test(ident)) {
+    return { error: { message: 'Username 3-20 karakter: huruf kecil, angka, atau _' } }
+  }
+
+  if (!isRegister) {
+    const found = await db.rpc('login_email', { kind: tab, ident })
+    if (!found.data) return { error: { message: 'Invalid login credentials' } }
+    return db.auth.signInWithPassword({ email: found.data, password: data.password })
+  }
+
+  // daftar: cek dulu di database apakah username / e-mail sudah ada
+  const used = tab === 'username'
+    ? !(await db.rpc('username_free', { u: ident })).data
+    : (await db.rpc('email_taken', { e: ident })).data
+
+  if (used) {
+    return { error: { message: tab === 'username' ? 'Username sudah dipakai' : 'E-mail sudah dipakai akun lain' } }
+  }
+
+  const meta = tab === 'username'
+    ? { name: ident, username: ident }
+    : { name: data.name, contact_email: ident }
+
+  // coba domain alias satu per satu sampai Supabase menerima
+  let result
+  for (const domain of ALIAS_DOMAINS) {
+    result = await db.auth.signUp({ email: makeAlias(domain), password: data.password, options: { data: meta } })
+
+    const rejected = result.error && /email address .* is invalid/i.test(result.error.message)
+    if (!rejected) break
+  }
+  return result
+}
+
+async function refreshMe() {
+  const { data } = await db.from('profiles').select('*').eq('id', S.me.id).single()
+  S.me = data
+
+  const { data: current } = await db.auth.getSession()
+  if (current.session && S.me) saveAccount(current.session, S.me)
+
+  render()
+}
+
+function accountMenu() {
+  const m = S.me
+  if (!m) return ''
+
+  const on = S.set.email_verif === true   // sistem verifikasi e-mail dinyalakan admin?
+  const verified = m.email_verified
+
+  return `
+    <div class="accmenu">
+      <div>
+        <b>${esc(m.name)}</b>
+        <small>${m.username ? '@' + esc(m.username) : 'Belum ada username'}${on ? ` · ${m.email ? esc(m.email) : 'Belum ada e-mail'}${verified ? ' ✔ terverifikasi' : ''}` : ''}</small>
+      </div>
+      ${on && !verified ? `<button class="btn" data-acc="email">${m.email ? 'Verifikasi E-mail' : 'Tambahkan E-mail'}<i class="warn inline">!</i></button>` : ''}
+      ${on || !m.username ? `<button class="btn ghost" data-acc="username">${m.username ? 'Ganti username' : 'Atur username'}</button>` : ''}
+      ${on ? `<button class="btn ghost" data-acc="password" ${verified ? '' : 'disabled'}>Ubah kata sandi</button>` : ''}
+      ${on && !verified ? '<p class="hint">Verifikasi e-mail agar bisa mereset kata sandi dan mengganti username.</p>' : ''}
+    </div>`
+}
+
+// layar memasukkan kode (dipakai semua alur)
+function codeStep(title, email, withPassword) {
+  modal(`
+    <h2>${title}</h2>
+    <p class="hint">Kode rahasia dikirim ke <b>${esc(email)}</b>. Cek juga folder spam.</p>
+    <form id="cs">
+      <input name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="Kode dari e-mail" maxlength="10" required>
+      ${withPassword ? '<input name="password" type="password" minlength="6" placeholder="Kata sandi baru (min. 6 karakter)" autocomplete="new-password" required>' : ''}
+      <button class="btn">Konfirmasi</button>
+    </form>
+    <p class="hint" style="margin-top:.6rem"><a href="#" data-resend>Kirim ulang kode</a></p>`)
+}
+
+async function verifyCode(email, code, type) {
+  busy(1)
+  const { error } = await db.auth.verifyOtp({ email, token: code.trim(), type })
+  busy(-1)
+
+  if (error) {
+    toast('Kode salah atau sudah kedaluwarsa', true)
+    return false
+  }
+  return true
+}
+
+// -- verifikasi / tambah e-mail --
+function emailStep1() {
+  modal(`
+    <h2>${S.me.email ? 'Verifikasi e-mail' : 'Tambahkan e-mail'}</h2>
+    <p class="hint">Kami kirim kode rahasia ke e-mail ini untuk membuktikan e-mail itu milikmu.</p>
+    <form id="f-email">
+      <input name="email" type="email" placeholder="E-mail" value="${esc(S.me.email)}" required>
+      <button class="btn">Kirim kode</button>
+    </form>`)
+}
+
+async function submitEmail(data) {
+  const email = data.email.trim().toLowerCase()
+
+  const send = async () => {
+    if (email !== S.me.email && !(await run(db.rpc('set_contact_email', { e: email })))) return false
+    return run(db.auth.updateUser({ email }), 'Kode dikirim ke ' + email)
+  }
+
+  if (!(await send())) return
+
+  S.flow = {
+    resend: send,
+    done: async form => {
+      if (!(await verifyCode(email, form.code, 'email_change'))) return
+
+      const result = await db.rpc('email_verified_now')
+      if (result.error || !result.data) return toast('Verifikasi gagal, kirim ulang kode lalu coba lagi', true)
+
+      toast('E-mail terverifikasi!')
+      closeModal()
+      refreshMe()
+    }
+  }
+  codeStep('Masukkan kode e-mail', email)
+}
+
+// -- ubah / reset kata sandi (butuh e-mail terverifikasi) --
+function passStep1() {
+  modal(`
+    <h2>${S.me ? 'Ubah kata sandi' : 'Lupa kata sandi'}</h2>
+    <p class="hint">Kode rahasia dikirim ke e-mail yang sudah terverifikasi.</p>
+    <form id="f-pass">
+      <input name="email" type="email" placeholder="E-mail terverifikasi" value="${esc(S.me?.email)}" ${S.me ? 'readonly' : ''} required>
+      <button class="btn">Kirim kode</button>
+    </form>`)
+}
+
+async function submitPass(data) {
+  const email = data.email.trim().toLowerCase()
+  const send = () => run(db.auth.signInWithOtp({ email, options: { shouldCreateUser: false } }), 'Kode dikirim ke ' + email)
+
+  if (!(await send())) return
+
+  S.flow = {
+    resend: send,
+    done: async form => {
+      if (form.password.length < 6) return toast('Kata sandi minimal 6 karakter', true)
+      if (!(await verifyCode(email, form.code, 'email'))) return
+      if (await run(db.auth.updateUser({ password: form.password }), 'Kata sandi diperbarui')) closeModal()
+    }
+  }
+  codeStep('Kode dan kata sandi baru', email, true)
+}
+
+// -- atur / ganti username (ganti: verified, 1x per 3 hari, konfirmasi kode) --
+function usernameWait() {
+  const at = S.me.username_changed_at
+  if (!at) return 0
+  return Math.ceil((new Date(at).getTime() + 3 * 86400000 - Date.now()) / 86400000)
+}
+
+function userStep1() {
+  const m = S.me
+
+  modal(`
+    <h2>${m.username ? 'Ganti username' : 'Atur username'}</h2>
+    <p class="hint">${m.username
+      ? `Username sekarang: @${esc(m.username)}. Hanya bisa diganti 1x per 3 hari dan perlu kode e-mail.`
+      : 'Dengan username kamu bisa masuk tanpa mengetik e-mail.'}</p>
+    <form id="f-user">
+      <input name="username" placeholder="Username baru (huruf kecil, angka, _)" maxlength="20" required>
+      <button class="btn">${m.username ? 'Kirim kode' : 'Simpan username'}</button>
+    </form>`)
+}
+
+async function submitUser(data) {
+  const username = data.username.trim().toLowerCase()
+
+  if (!USERNAME_RE.test(username)) return toast('Username 3-20 karakter: huruf kecil, angka, atau _', true)
+  if (!(await db.rpc('username_free', { u: username })).data) return toast('Username sudah dipakai', true)
+
+  // pertama kali: langsung disimpan
+  if (!S.me.username) {
+    if (await run(db.rpc('set_username', { u: username }), 'Username disimpan')) {
+      closeModal()
+      refreshMe()
+    }
+    return
+  }
+
+  if (!S.me.email_verified) return toast('Verifikasi e-mail dulu', true)
+  if (usernameWait() > 0) return toast(`Username baru bisa diganti ${usernameWait()} hari lagi`, true)
+
+  const email = S.me.email
+  const send = () => run(db.auth.signInWithOtp({ email, options: { shouldCreateUser: false } }), 'Kode dikirim ke ' + email)
+
+  if (!(await send())) return
+
+  S.flow = {
+    resend: send,
+    done: async form => {
+      if (!(await verifyCode(email, form.code, 'email'))) return
+
+      if (await run(db.rpc('set_username', { u: username }), 'Username diganti')) {
+        closeModal()
+        refreshMe()
+      }
+    }
+  }
+  codeStep('Konfirmasi ganti username', email)
+}
+
+
+/* ---------- 9c. VERSI (dari GitHub) & MENU INFORMASI ---------- */
+const V = { label: VERSION_FALLBACK, commits: null, latest: null, log: null, logErr: false }
+
+const GH_ON = () => GITHUB_REPO !== 'OWNER/REPO' && /^[\w.-]+\/[\w.-]+$/.test(GITHUB_REPO)
+
+function infoHasNew() {
+  try {
+    return localStorage.getItem('log-seen') !== RELEASE_ID
+  } catch (e) {
+    return false
+  }
+}
+
+function drawVersion() {
+  const ver = $('#ver')
+  if (ver) {
+    ver.textContent = V.label
+    ver.title = V.commits ? V.commits + ' commit di GitHub (klik untuk detail)' : 'Lihat versi lengkap'
+  }
+
+  const btn = $('#infobtn')
+  if (btn) btn.classList.toggle('hasnew', infoHasNew())
+}
+
+// versi = v{VERSION_MAJOR}.{jumlah commit}. Jumlah commit dibaca dari header "Link" GitHub API.
+async function loadVersion() {
+  drawVersion()
+  if (!GH_ON()) return
+
+  let cached = null
+  try {
+    cached = JSON.parse(localStorage.getItem('gh-version'))
+  } catch (e) { }
+
+  // GitHub membatasi 60 permintaan/jam tanpa login, jadi hasil disimpan 1 jam
+  if (cached && Date.now() - cached.t < 3600000) {
+    Object.assign(V, cached.v)
+    return drawVersion()
+  }
+
+  try {
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/commits?per_page=1`)
+    if (!res.ok) throw new Error('github ' + res.status)
+
+    const body = await res.json()
+    const last = (res.headers.get('Link') || '').match(/[?&]page=(\d+)[^>]*>;\s*rel="last"/)
+    const commits = last ? +last[1] : body.length
+
+    V.commits = commits
+    V.label = `v${VERSION_MAJOR}.${commits}`
+    V.latest = body[0]
+      ? { sha: body[0].sha.slice(0, 7), msg: body[0].commit.message.split('\n')[0], date: body[0].commit.author.date }
+      : null
+
+    try {
+      localStorage.setItem('gh-version', JSON.stringify({ t: Date.now(), v: { commits: V.commits, label: V.label, latest: V.latest } }))
+    } catch (e) { }
+  } catch (e) {
+    if (cached) Object.assign(V, cached.v)   // gagal: pakai data lama kalau ada
+  }
+
+  drawVersion()
+}
+
+async function loadLog() {
+  if (V.log || !GH_ON()) return
+
+  try {
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/commits?per_page=20`)
+    if (!res.ok) throw new Error('github ' + res.status)
+
+    const body = await res.json()
+    V.log = body.map(c => ({
+      sha: c.sha.slice(0, 7),
+      msg: c.commit.message.split('\n')[0],
+      date: c.commit.author.date
+    }))
+  } catch (e) {
+    V.logErr = true
+  }
+}
+
+const INFO_TABS = [['about', 'Tentang'], ['log', 'Update Log'], ['lokasi', 'Lokasi'], ['dev', 'Developer'], ['more', 'Versi Lengkap']]
+
+function safeLink(url) {
+  return /^https?:\/\//i.test(url || '') ? esc(url) : ''
+}
+
+function infoBody(tab) {
+  if (tab === 'log') {
+    const notes = CHANGELOG.map(c => `
+      <div class="commit">
+        <b>${esc(c.title)}</b><small>${esc(c.date)}</small>
+        <ul>${c.items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
+      </div>`).join('')
+
+    let git = ''
+    if (GH_ON()) {
+      git = V.log
+        ? '<h3>Riwayat commit GitHub</h3>' + V.log.map(c => `
+            <div class="commit"><b>${esc(c.msg)}</b><small>${esc(c.sha)} · ${fmtDateTime(c.date)}</small></div>`).join('')
+        : V.logErr
+          ? '<p class="hint">Riwayat GitHub tidak bisa dimuat sekarang.</p>'
+          : SPINNER
+    }
+
+    return `<h3>Pembaruan terbaru</h3>${notes}${git}`
+  }
+
+  if (tab === 'lokasi') {
+    return `
+      <h3>Lokasi perpustakaan</h3>
+      <div class="lokasi">
+        <span class="pin">📍</span>
+        <div><b>${LOKASI}</b><p>${CATATAN}</p></div>
+      </div>`
+  }
+
+  if (tab === 'dev') {
+    const link = safeLink(DEVELOPER.link)
+
+    return `
+      <h3>Developer</h3>
+      <div class="commit">
+        <b>${esc(DEVELOPER.name)}</b><small>${esc(DEVELOPER.role)}</small>
+        ${DEVELOPER.contact ? `<p>${esc(DEVELOPER.contact)}</p>` : ''}
+        ${link ? `<p><a href="${link}" target="_blank" rel="noopener">${link}</a></p>` : ''}
+      </div>`
+  }
+
+  if (tab === 'more') {
+    const rows = [
+      ['Versi', esc(V.label)],
+      //      ['Jumlah commit', V.commits ?? '-'],
+      //      ['Commit terbaru', V.latest ? `${esc(V.latest.sha)} · ${esc(V.latest.msg)} (${fmtDateTime(V.latest.date)})` : '-'],
+      //      ['Repository', GH_ON() ? `<a href="https://github.com/${GITHUB_REPO}" target="_blank" rel="noopener">${GITHUB_REPO}</a>` : 'Belum diatur'],
+      ['Rilis', esc(RELEASE_ID)],
+      ['Tema', esc(document.documentElement.dataset.theme)],
+      ['Jumlah buku', S.books.length],
+      ['Koneksi', navigator.onLine ? 'Online' : 'Offline']
+    ]
+
+    return `
+      <h3>Versi lengkap</h3>
+      <dl class="kv">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+      <p class="hint">Punya pertanyaan atau menemukan bug?, Hubungi Customer Service.</p>`
+  }
+
+  // tentang
+  return `
+    <h3>Tentang PustakaKita</h3>
+    <p>PustakaKita adalah perpustakaan sekolah online. Lihat katalog, booking buku dari rumah, lalu ambil di perpustakaan setelah disetujui admin.</p>
+    <ul>
+      <li>Katalog buku dengan pencarian, kategori, dan halaman.</li>
+      <li>Booking buku ${S.set.duration_var ? 'dengan durasi pilihan' : `dengan durasi ${DEFAULT_DAYS} hari`}, dan bisa dikembalikan kapan saja.</li>
+      <li>Pesan langsung dengan admin untuk setiap peminjaman.</li>
+      <li>Chat Customer Service untuk pertanyaan umum.</li>
+    </ul>`
+}
+
+function openInfo(tab) {
+  const showNew = infoHasNew()
+  S.infoTab = tab
+
+  if (tab === 'log') {
+    try {
+      localStorage.setItem('log-seen', RELEASE_ID)
+    } catch (e) { }
+    drawVersion()
+
+    if (GH_ON() && !V.log && !V.logErr) {
+      loadLog().then(() => {
+        if (S.infoTab === 'log' && $('.ibody')) $('.ibody').innerHTML = infoBody('log')
+      })
+    }
+  }
+
+  const tabs = INFO_TABS
+    .map(([key, label]) => `<button type="button" class="${tab === key ? 'on' : ''}" data-itab="${key}">${label}${key === 'log' && showNew ? '<i class="newtag">NEW!</i>' : ''}</button>`)
+    .join('')
+
+  modal(`
+    <h2>Informasi</h2>
+    <div class="tabs itabs">${tabs}</div>
+    <div class="ibody">${infoBody(tab)}</div>`)
 }
 
 
@@ -994,6 +1970,7 @@ document.addEventListener('click', async e => {
   // pindah halaman
   if (el = find('v')) {
     S.view = el.dataset.v
+    S.pOpen = false
     render(true)
     if (S.view === 'pesan') loadPesan(true)
     return
@@ -1001,6 +1978,21 @@ document.addEventListener('click', async e => {
 
   // buka detail buku
   if (el = find('card')) return openBook(el.dataset.card)
+
+  // ganti halaman katalog
+  if (el = find('page')) {
+    const n = +el.dataset.page
+    if (n >= 1) {
+      S.page = n
+      drawGrid()
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    return
+  }
+
+  // menu Informasi (!) dan tab-tabnya
+  if (el = find('info')) return openInfo(el.dataset.info || 'about')
+  if (el = find('itab')) return openInfo(el.dataset.itab)
 
   // login / daftar / keluar
   if (el = find('auth')) {
@@ -1025,7 +2017,16 @@ document.addEventListener('click', async e => {
   }
 
   if (el = find('del')) {
-    if (!confirm('Hapus buku ini beserta riwayat peminjamannya?')) return
+    const yes = await ask({
+      title: 'Hapus buku ini?',
+      text: 'Buku beserta riwayat peminjamannya akan dihapus dan tidak bisa dikembalikan.',
+      yes: 'Ya, hapus',
+      no: 'Batal',
+      danger: true,
+      icon: '🗑️'
+    })
+    if (!yes) return
+
     if (await run(db.from('books').delete().eq('id', el.dataset.del), 'Buku dihapus')) {
       closeModal()
       loadData()
@@ -1064,6 +2065,39 @@ document.addEventListener('click', async e => {
     return
   }
 
+  // user: ajukan pengembalian buku (boleh kapan saja selama status "dipinjam")
+  if (el = find('reqret')) {
+    const yes = await ask({
+      title: 'Ajukan pengembalian?',
+      text: 'Kamu tetap perlu menyerahkan bukunya ke perpustakaan.',
+      yes: 'Ya, ajukan',
+      no: 'Batal',
+      icon: '📚'
+    })
+    if (!yes) return
+
+    if (await run(db.rpc('request_return', { lid: +el.dataset.reqret }), 'Pengembalian diajukan, antar bukunya ke perpustakaan')) loadData()
+    return
+  }
+
+  // akun: tab, lupa kata sandi, menu, kirim ulang kode
+  if (el = find('atab')) {
+    S.authTab = el.dataset.atab
+    return authForm(S.authReg)
+  }
+  if (find('forgot')) {
+    e.preventDefault()
+    return passStep1()
+  }
+  if (el = find('acc')) {
+    const kind = el.dataset.acc
+    return kind === 'email' ? emailStep1() : kind === 'username' ? userStep1() : passStep1()
+  }
+  if (find('resend')) {
+    e.preventDefault()
+    return S.flow?.resend()
+  }
+
   // zoom gambar slide
   if (el = find('zoom')) {
     const action = el.dataset.zoom
@@ -1075,6 +2109,11 @@ document.addEventListener('click', async e => {
   if (el = find('pchat')) {
     S.chatSel = +el.dataset.pchat
     S.draft = ''
+    S.pOpen = true   // mode HP: buka chat layar penuh
+    return drawPesan()
+  }
+  if (find('pback')) {
+    S.pOpen = false
     return drawPesan()
   }
   if (el = find('pend')) return endPesan(+el.dataset.pend)
@@ -1112,6 +2151,7 @@ document.addEventListener('click', async e => {
       patch.due_at = new Date(Date.now() + loan.days * 86400000).toISOString()
     }
 
+    // status "dikembalikan": waktu kembali dicatat otomatis oleh database (returned_at)
     if (await run(db.from('loans').update(patch).eq('id', id), 'Status diperbarui')) loadData()
     return
   }
@@ -1120,14 +2160,22 @@ document.addEventListener('click', async e => {
 document.addEventListener('input', e => {
   if (e.target.id === 'q') {
     S.q = e.target.value
+    S.page = 1
     drawGrid()
   } else if (e.target.id === 'cat') {
     S.cat = e.target.value
+    S.page = 1
     drawGrid()
   } else if (e.target.id === 'pbody') {
     S.draft = e.target.value
   } else if (e.target.id === 'f') {
     S.f = e.target.value
+    drawRows()
+  } else if (e.target.id === 'sortby') {
+    S.sort = e.target.value
+    drawRows()
+  } else if (e.target.id === 'sfilter') {
+    S.sf = e.target.value
     drawRows()
   }
 
@@ -1135,7 +2183,7 @@ document.addEventListener('input', e => {
 })
 
 document.addEventListener('change', e => {
-  if (['multi_book', 'multi_rent'].includes(e.target.id)) {
+  if (['multi_book', 'multi_rent', 'email_verif', 'duration_var'].includes(e.target.id)) {
     const box = e.target
     run(db.from('settings').upsert({ key: box.id, value: box.checked }), 'Pengaturan disimpan')
       .then(ok => { if (ok) S.set[box.id] = box.checked; else box.checked = !box.checked })
@@ -1180,20 +2228,28 @@ document.addEventListener('submit', async e => {
     return cancelStep2()
   }
 
-  // login / daftar
+  // masuk / daftar (tab Username atau E-mail)
   if (form.id === 'af') {
     const isRegister = form.dataset.reg === '1'
+    const tab = form.dataset.tab
+    const ident = (tab === 'username' ? data.username : data.email).trim().toLowerCase()
 
-    const result = isRegister
-      ? await db.auth.signUp({ email: data.email, password: data.password, options: { data: { name: data.name } } })
-      : await db.auth.signInWithPassword({ email: data.email, password: data.password })
+    busy(1)
+    const result = await authenticate(isRegister, tab, ident, data)
+    busy(-1)
 
     if (result.error) return toast(friendlyError(result.error), true)
 
     closeModal()
-    toast(isRegister && !result.data.session ? 'Cek emailmu untuk verifikasi akun, lalu masuk' : 'Selamat datang!')
+    toast('Selamat datang!')
     return
   }
+
+  // alur akun: e-mail, kata sandi, username, kode
+  if (form.id === 'f-email') return submitEmail(data)
+  if (form.id === 'f-pass') return submitPass(data)
+  if (form.id === 'f-user') return submitUser(data)
+  if (form.id === 'cs') return S.flow?.done(data)
 
   // simpan buku
   if (form.id === 'bf') {
@@ -1218,6 +2274,7 @@ document.addEventListener('submit', async e => {
       author: data.author,
       category: data.category,
       stock: +data.stock,
+      limited: !!data.limited,
       cover,
       description: data.description,
       slides
@@ -1244,6 +2301,8 @@ document.addEventListener('submit', async e => {
 
 
 /* ---------- 11. MULAI ---------- */
+loadVersion()
+
 db.auth.onAuthStateChange((event, session) => {
   // setTimeout: supabase-js melarang query langsung di dalam callback ini
   setTimeout(async () => {
@@ -1253,7 +2312,9 @@ db.auth.onAuthStateChange((event, session) => {
       return
     }
 
-    // ganti akun / login / logout: kosongkan data akun sebelumnya
+    // ganti akun / login / logout: tutup dialog konfirmasi yang masih terbuka, lalu kosongkan data akun sebelumnya
+    closeAsk(false)
+
     S.me = null
     S.mine = []
     S.all = []
@@ -1262,11 +2323,23 @@ db.auth.onAuthStateChange((event, session) => {
     S.chats = []
     S.cmsgs = []
     S.chatSel = null
+    S.seen = {}
+    S.pOpen = false
 
     if (session) {
       const { data } = await db.from('profiles').select('*').eq('id', session.user.id).single()
       S.me = data
-      if (S.me) saveAccount(session, S.me)
+
+      // e-mail sudah berganti lewat tautan di e-mail? kalau ya, tandai terverifikasi
+      if (S.me?.email && !S.me.email_verified) {
+        const check = await db.rpc('email_verified_now')
+        if (check.data) S.me.email_verified = true
+      }
+
+      if (S.me) {
+        saveAccount(session, S.me)
+        loadSeen()
+      }
     }
 
     if (!S.me && S.view !== 'katalog') S.view = 'katalog'
@@ -1278,6 +2351,7 @@ db.auth.onAuthStateChange((event, session) => {
     await loadData(true)
     await loadChat()
     await loadPesan()
+    initSeen()
 
     if (location.hash.startsWith('#buku=') && !$('#modal').classList.contains('open')) {
       openBook(location.hash.slice(6))

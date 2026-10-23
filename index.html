@@ -13,11 +13,16 @@
 
 <body>
   <header class="top">
-    <h1>Pustaka<span>Kita</span></h1>
+    <h1>Pustaka<span>Kita</span> <button id="ver" class="ver" data-info="more" title="Lihat versi lengkap">v1.0</button>
+    </h1>
     <nav id="nav"></nav>
+    <button id="infobtn" class="icon-btn info-btn" data-info="about" aria-label="Informasi" title="Informasi">!</button>
     <button id="theme" class="icon-btn" data-themebtn aria-label="Ganti tema"></button>
     <div id="auth"></div>
   </header>
+
+  <!-- peringatan tetap: buku terlambat dikembalikan -->
+  <div id="alerts" hidden></div>
 
   <main id="main" class="view">
     <div class="loadwrap">
@@ -25,6 +30,8 @@
     </div>
   </main>
   <div id="modal"></div>
+  <!-- dialog konfirmasi kustom (diisi oleh ask() di app.js) -->
+  <div id="confirm"></div>
   <div id="toasts"></div>
   <div id="busy" class="busy" hidden>
     <div class="spinner"></div>
@@ -35,9 +42,9 @@
     <p>Periksa koneksi internetmu. Halaman akan kembali otomatis saat online.</p>
   </div>
 
-  <!-- Chat CS: gelembung + jendela kecil -->
-  <button id="bubble" class="bubble" data-chat aria-label="Buka chat CS" title="Chat Customer Service"
-    hidden>💬</button>
+  <!-- Chat Customer Service: gelembung + jendela kecil -->
+  <button id="bubble" class="bubble" data-chat aria-label="Buka chat Customer Service" title="Chat Customer Service"
+    hidden>💬<i id="bubble-nb" class="nb" hidden></i></button>
   <section id="chatw" class="chatw" aria-label="Chat Customer Service">
     <div class="chat-head">
       <b id="ctitle">Chat Customer Service</b>
@@ -45,6 +52,7 @@
       <button data-chat aria-label="Tutup chat">✕</button>
     </div>
     <select id="threadsel" aria-label="Pilih percakapan" hidden></select>
+    <div id="cinfo" class="cinfo" hidden></div>
     <div id="msgs"></div>
     <div id="cnew" class="cnew" hidden>
       <span class="hint">Percakapan telah diakhiri.</span>

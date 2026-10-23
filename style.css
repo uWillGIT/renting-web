@@ -23,6 +23,7 @@
     --stamp: #f5d547;
     --ok: #047857;
     --bad: #b42318;
+    --ltd: #e0a100;
 }
 
 [data-theme="gelap"] {
@@ -41,6 +42,7 @@
     --stamp: #f5d547;
     --ok: #34d399;
     --bad: #f87171;
+    --ltd: #facc15;
 }
 
 [data-theme="terang"] {
@@ -59,6 +61,7 @@
     --stamp: #fde68a;
     --ok: #047857;
     --bad: #b42318;
+    --ltd: #e0a100;
 }
 
 
@@ -126,6 +129,25 @@ body {
 
 .top h1 span {
     color: var(--pri2);
+}
+
+/* label versi (dari jumlah commit GitHub) */
+.ver {
+    margin-left: 0.4rem;
+    padding: 0.05rem 0.5rem;
+    border: 1px solid var(--topmut);
+    border-radius: 99px;
+    background: none;
+    color: var(--topmut);
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.ver:hover {
+    color: var(--topink);
 }
 
 
@@ -233,6 +255,18 @@ button:focus-visible {
     color: var(--pri2);
 }
 
+/* checkbox di form (mis. LIMITED TIME) */
+.check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.check input {
+    width: auto;
+}
+
 
 /* ---------- 5. KATALOG ---------- */
 .bar {
@@ -249,6 +283,7 @@ button:focus-visible {
 
 .bar select {
     width: auto;
+    max-width: 100%;
 }
 
 .grid {
@@ -316,10 +351,71 @@ button:focus-visible {
     color: var(--bad);
 }
 
+/* label LIMITED TIME (kuning, di samping stok) */
+.ltd {
+    color: var(--ltd);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    animation: kedip 1.6s ease-in-out infinite;
+}
+
+@keyframes kedip {
+    50% {
+        opacity: 0.55;
+    }
+}
+
 .empty {
     grid-column: 1 / -1;
     padding: 3rem 0;
     color: var(--mut);
+    text-align: center;
+}
+
+/* halaman katalog */
+.pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    margin-top: 1.4rem;
+}
+
+.pager button {
+    min-width: 2.3rem;
+    height: 2.3rem;
+    padding: 0 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--ink);
+    font: inherit;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.pager button:hover:not(:disabled) {
+    border-color: var(--pri2);
+}
+
+.pager button.on {
+    border-color: var(--pri);
+    background: var(--pri);
+    color: var(--onpri);
+}
+
+.pager button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pager .gap {
+    color: var(--mut);
+}
+
+.pager .pginfo {
+    flex: 1 0 100%;
     text-align: center;
 }
 
@@ -427,6 +523,10 @@ button:focus-visible {
     max-width: 130px;
 }
 
+.durnote {
+    margin-top: 0.4rem;
+}
+
 
 /* ---------- 7. PINJAMAN & ADMIN ---------- */
 .chip {
@@ -439,7 +539,8 @@ button:focus-visible {
     font-weight: 600;
 }
 
-.s-approved {
+.s-approved,
+.s-req {
     background: var(--stamp);
     color: #3b3000;
 }
@@ -470,6 +571,10 @@ button:focus-visible {
     border: 1px solid var(--line);
     border-radius: 12px;
     background: var(--card);
+}
+
+.loan.overdue {
+    border-color: var(--bad);
 }
 
 .loan>div:first-child {
@@ -566,64 +671,7 @@ td .btn {
 }
 
 
-/* ---------- 8. TEMA (ikon), CHAT CS, AKUN ---------- */
-
-
-
-
-
-
-
-#msgs {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 1rem;
-    overflow-y: auto;
-}
-
-.msg {
-    max-width: 75%;
-    padding: 0.5rem 0.8rem;
-    border-radius: 14px;
-    background: var(--soft);
-    animation: masuk 0.25s both;
-    overflow-wrap: anywhere;
-}
-
-.msg.me {
-    align-self: flex-end;
-    background: var(--pri);
-    color: var(--onpri);
-}
-
-.msg img {
-    display: block;
-    max-width: 220px;
-    margin-bottom: 0.3rem;
-    border-radius: 8px;
-}
-
-.msg small {
-    display: block;
-    opacity: 0.65;
-    font-size: 0.7rem;
-}
-
-#cf {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.7rem;
-    border-top: 1px solid var(--line);
-}
-
-.attach {
-    font-size: 1.3rem;
-    cursor: pointer;
-}
-
+/* ---------- 8. TEMA (ikon), CHAT CUSTOMER SERVICE, AKUN ---------- */
 
 /* tombol tema: ikon + animasi putar + gelombang lingkaran */
 .icon-btn {
@@ -640,6 +688,27 @@ td .btn {
 
 .icon-btn.spin {
     animation: putar 0.65s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+/* tombol informasi (!) */
+.info-btn {
+    position: relative;
+    color: var(--topink);
+    font: inherit;
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.info-btn.hasnew::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 0 2px var(--top);
 }
 
 @keyframes putar {
@@ -704,6 +773,33 @@ td .btn {
     }
 }
 
+/* bubble angka notifikasi (menu, gelembung chat) */
+.nb {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    margin-left: 0.35rem;
+    padding: 0 0.3rem;
+    border-radius: 99px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 0.68rem;
+    font-style: normal;
+    font-weight: 800;
+    line-height: 1;
+    vertical-align: middle;
+    animation: muncul 0.3s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+
+.bubble .nb {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    margin: 0;
+    box-shadow: 0 0 0 2px var(--bg);
+}
+
 /* jendela chat kecil */
 .chatw {
     position: fixed;
@@ -764,6 +860,15 @@ td .btn {
 #threadsel {
     border-width: 0 0 1px;
     border-radius: 0;
+}
+
+/* info: siapa admin yang terakhir membalas */
+.cinfo {
+    padding: 0.4rem 1rem;
+    border-bottom: 1px solid var(--line);
+    background: var(--soft);
+    color: var(--mut);
+    font-size: 0.78rem;
 }
 
 #msgs {
@@ -1060,7 +1165,7 @@ td .btn {
 }
 
 
-/* ---------- 8c. ZOOM, PESAN, SELESAI ---------- */
+/* ---------- 8c. ZOOM, PESAN (gaya WhatsApp), SELESAI ---------- */
 .slide {
     overflow: hidden;
 }
@@ -1126,10 +1231,15 @@ td .btn {
     gap: 0.4rem;
 }
 
-#plist button {
-    padding: 0.7rem 0.9rem;
+/* item daftar percakapan: avatar, judul, pratinjau, jam, angka belum dibaca */
+#plist .pitem {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    width: 100%;
+    padding: 0.65rem 0.8rem;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: 12px;
     background: var(--card);
     color: var(--ink);
     font: inherit;
@@ -1138,14 +1248,45 @@ td .btn {
     transition: 0.2s;
 }
 
-#plist button.on {
+#plist .pitem.on {
     border-color: var(--pri2);
     background: var(--soft);
 }
 
-#plist small {
-    display: block;
+#plist .pi {
+    flex: 1;
+    min-width: 0;
+}
+
+#plist .pr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+#plist .pr b {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#plist .pr small {
+    flex: none;
     color: var(--mut);
+    font-size: 0.72rem;
+}
+
+#plist .pp {
+    overflow: hidden;
+    color: var(--mut);
+    font-size: 0.82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#plist .pitem .nb {
+    flex: none;
 }
 
 .ppanel {
@@ -1168,6 +1309,25 @@ td .btn {
     border-bottom: 1px solid var(--line);
 }
 
+.back {
+    display: none;
+    padding: 0 0.4rem;
+    border: 0;
+    background: none;
+    color: inherit;
+    font-size: 1.4rem;
+    cursor: pointer;
+}
+
+.ptitle {
+    flex: 1;
+    min-width: 0;
+}
+
+.ptitle small {
+    display: block;
+}
+
 #pmsgs {
     display: flex;
     flex: 1;
@@ -1185,9 +1345,58 @@ td .btn {
     border-top: 1px solid var(--line);
 }
 
+/* HP: daftar pesan penuh; klik satu chat -> chat layar penuh.
+   Kolom ketik & tombol Kirim dinaikkan supaya tidak tertutup watermark Netlify. */
 @media (max-width: 700px) {
     .pesan {
         grid-template-columns: 1fr;
+    }
+
+    .pesan .ppanel {
+        display: none;
+    }
+
+    .pesan.open .ppanel {
+        position: fixed;
+        inset: 0;
+        z-index: 25;
+        display: flex;
+        height: auto;
+        border: 0;
+        border-radius: 0;
+    }
+
+    .pesan.open #plist {
+        display: none;
+    }
+
+    .pesan.open .back {
+        display: block;
+    }
+
+    .pesan.open .phead {
+        padding-top: calc(0.7rem + env(safe-area-inset-top, 0px));
+    }
+
+    .pesan.open #pf {
+        padding: 0.7rem 0.7rem calc(3.6rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .pesan.open .cnew {
+        padding-bottom: calc(3.4rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    body:has(.pesan.open) {
+        overflow: hidden;
+    }
+
+    #plist .pitem.on {
+        border-color: var(--line);
+        background: var(--card);
+    }
+
+    .alertbar {
+        padding: 0.6rem 1rem;
     }
 }
 
@@ -1298,6 +1507,254 @@ td .btn {
 
     .box {
         padding: 1rem;
+    }
+}
+
+
+/* ---------- 8g. AKUN: tab, tanda seru, menu ---------- */
+.ava {
+    position: relative;
+}
+
+.warn {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    display: grid;
+    place-items: center;
+    width: 0.95rem;
+    height: 0.95rem;
+    border-radius: 50%;
+    background: #f59e0b;
+    color: #1a1200;
+    font-size: 0.7rem;
+    font-style: normal;
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: 0 0 0 2px var(--top);
+}
+
+.warn.inline {
+    position: static;
+    display: inline-grid;
+    margin-left: 0.3rem;
+    vertical-align: middle;
+    box-shadow: none;
+}
+
+.tabs {
+    display: flex;
+    gap: 0.3rem;
+    margin: 0.6rem 0 0.8rem;
+    padding: 0.25rem;
+    border-radius: 10px;
+    background: var(--soft);
+}
+
+.tabs button {
+    flex: 1;
+    padding: 0.4rem;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.tabs button.on {
+    background: var(--pri);
+    color: var(--onpri);
+}
+
+.accmenu {
+    display: grid;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.9rem;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+
+.accmenu small {
+    display: block;
+    color: var(--mut);
+}
+
+
+/* ---------- 8h. MENU INFORMASI (!) ---------- */
+.itabs {
+    overflow-x: auto;
+}
+
+.itabs button {
+    flex: none;
+    padding: 0.4rem 0.8rem;
+    white-space: nowrap;
+}
+
+.newtag {
+    margin-left: 0.3rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 99px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 0.6rem;
+    font-style: normal;
+    font-weight: 800;
+    vertical-align: middle;
+}
+
+.ibody {
+    display: grid;
+    gap: 0.6rem;
+}
+
+.ibody ul {
+    padding-left: 1.2rem;
+}
+
+.ibody a {
+    color: var(--pri2);
+    overflow-wrap: anywhere;
+}
+
+.commit {
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+}
+
+.commit small {
+    display: block;
+    color: var(--mut);
+}
+
+.commit ul {
+    margin-top: 0.3rem;
+    font-size: 0.9rem;
+}
+
+.kv {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.35rem 1rem;
+    font-size: 0.9rem;
+}
+
+.kv dt {
+    color: var(--mut);
+}
+
+.kv dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+
+/* ---------- 8i. PERINGATAN TERLAMBAT ---------- */
+.alertbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.6rem 1.5rem;
+    background: #b42318;
+    color: #ffffff;
+    font-size: 0.9rem;
+}
+
+.alertbar span {
+    flex: 1;
+    min-width: 200px;
+}
+
+.alertbar .btn {
+    background: #ffffff;
+    color: #b42318;
+}
+
+
+/* ---------- 8j. DIALOG KONFIRMASI KUSTOM ---------- */
+/* Di atas modal (20) dan chat (25), di bawah spinner busy (40). */
+#confirm {
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(8, 8, 20, 0.7);
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.2s, visibility 0.2s;
+}
+
+#confirm.open {
+    visibility: visible;
+    opacity: 1;
+}
+
+.cbox {
+    width: min(380px, 100%);
+    padding: 1.5rem 1.4rem 1.2rem;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--card);
+    color: var(--ink);
+    text-align: center;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+    transform: scale(0.9) translateY(12px);
+    transition: transform 0.3s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+
+#confirm.open .cbox {
+    transform: none;
+}
+
+.cicon {
+    display: grid;
+    place-items: center;
+    width: 3.4rem;
+    height: 3.4rem;
+    margin: 0 auto 0.8rem;
+    border-radius: 50%;
+    background: var(--soft);
+    font-size: 1.6rem;
+}
+
+.cbox.danger .cicon {
+    background: rgba(239, 68, 68, 0.18);
+}
+
+.cbox h3 {
+    font-size: 1.15rem;
+    line-height: 1.3;
+}
+
+.cbox p {
+    margin-top: 0.4rem;
+    color: var(--mut);
+    font-size: 0.92rem;
+    overflow-wrap: anywhere;
+}
+
+.cact {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 1.3rem;
+}
+
+.cact .btn {
+    flex: 1;
+    padding: 0.65rem 1rem;
+}
+
+/* HP kecil: tombol ditumpuk, tombol setuju di atas */
+@media (max-width: 380px) {
+    .cact {
+        flex-direction: column-reverse;
     }
 }
 
