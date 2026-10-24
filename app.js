@@ -86,7 +86,7 @@ const LIMITED_HTML = ' - <span class="ltd">LIMITED TIME!</span>'
 const GITHUB_REPO = 'OWNER/REPO'    // <-- GANTI, contoh: 'username/pustakakita' (repo harus public)
 const VERSION_MAJOR = 1
 const VERSION_FALLBACK = 'v1.0'     // dipakai jika GitHub tidak bisa dihubungi / repo belum diisi
-const RELEASE_ID = '2026-10-23'     // ganti setiap rilis baru supaya tanda NEW! muncul lagi
+const RELEASE_ID = '2026-10-24b'    // ganti setiap rilis baru supaya tanda NEW! muncul lagi
 
 // data tab Developer (ubah sesukamu)
 const DEVELOPER = {
@@ -97,7 +97,24 @@ const DEVELOPER = {
 }
 
 // catatan update manual (tampil di tab Update Log, di atas riwayat commit GitHub)
+// Urutan: yang terbaru di atas. Tiap rilis baru = tambah satu entri baru di paling atas,
+// entri lama jangan dihapus/diubah supaya riwayatnya tetap ada. Jangan lupa ganti RELEASE_ID.
 const CHANGELOG = [
+  {
+    title: 'Menu slide di HP',
+    date: '24 Okt 2026',
+    items: [
+      'Tampilan HP: menu navigasi kini berupa panel slide dari kiri (tombol ☰ di kiri logo PustakaKita) sehingga header lebih rapi.',
+      'Informasi (!), ganti tema, dan akun dipindah ke dalam menu slide di HP; angka notifikasi tampil di tombol ☰.'
+    ]
+  },
+  {
+    title: 'Perbaikan Pesan di HP',
+    date: '24 Okt 2026',
+    items: [
+      'Perbaikan: chat di halaman Pesan (tampilan HP) yang kadang tampil kosong saat dibuka di sebagian perangkat.'
+    ]
+  },
   {
     title: 'Pembaruan besar',
     date: '23 Okt 2026',
@@ -397,6 +414,7 @@ function setTheme(name) {
   document.documentElement.dataset.theme = theme.name
   $('#theme').textContent = theme.icon
   $('#theme').title = 'Tema ' + theme.name + ' (klik untuk ganti)'
+  drawDrawerFoot()
 
   try {
     localStorage.setItem('tema', theme.name)
@@ -600,6 +618,8 @@ function nb(n) {
   return n > 0 ? `<i class="nb">${n > 99 ? '99+' : n}</i>` : ''
 }
 
+let navTotal = 0   // jumlah semua bubble angka di menu (ditampilkan di tombol hamburger)
+
 function renderNav() {
   const me = S.me
   const isAdmin = me?.role === 'admin'
@@ -612,7 +632,64 @@ function renderNav() {
   $('#nav').innerHTML = menu
     .map(([key, label, n]) => `<button class="${S.view === key ? 'on' : ''}" data-v="${key}">${label}${nb(n)}</button>`)
     .join('')
+
+  navTotal = menu.reduce((sum, m) => sum + m[2], 0)
+  drawHamb()
+  drawDrawerFoot()
 }
+
+// tombol hamburger (HP): angka notifikasi, atau titik merah jika ada update log baru
+function drawHamb() {
+  const btn = $('#hamb')
+  if (!btn) return
+
+  const badge = $('#hamb-nb')
+  badge.textContent = navTotal > 99 ? '99+' : navTotal
+  badge.hidden = navTotal <= 0
+
+  btn.classList.toggle('hasnew', navTotal <= 0 && infoHasNew())
+}
+
+// bagian bawah menu slide (HP): akun, Informasi, tema. Di layar lebar bagian ini tersembunyi.
+function drawDrawerFoot() {
+  const box = $('#dfoot')
+  if (!box) return
+
+  const me = S.me
+  const theme = THEMES.find(t => t.name === document.documentElement.dataset.theme) || THEMES[0]
+
+  const account = me
+    ? `<button class="dbtn acc" data-accounts>
+         <span class="ava">${esc(me.name[0] || '?').toUpperCase()}</span>
+         <span class="dname">${esc(me.name)}${me.role === 'admin' ? ' <b class="chip">admin</b>' : ''}</span>
+       </button>`
+    : '<button class="dbtn acc" data-accounts>👤 Masuk / Daftar</button>'
+
+  box.innerHTML = `
+    ${account}
+    <button class="dbtn" data-info="about"><span>ℹ️ Informasi</span>${infoHasNew() ? '<i class="newtag">NEW!</i>' : ''}</button>
+    <button class="dbtn" data-themebtn><span>${theme.icon} Tema ${esc(theme.name)}</span><small>ketuk untuk ganti</small></button>`
+}
+
+// buka / tutup menu slide (HP)
+function setMenu(open) {
+  const was = document.body.classList.contains('menu-open')
+
+  document.body.classList.toggle('menu-open', open)
+  $('#hamb')?.setAttribute('aria-expanded', String(open))
+
+  if (open) setTimeout(() => $('.drawer-x')?.focus({ preventScroll: true }), 320)
+  else if (was) $('#hamb')?.focus({ preventScroll: true })
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !askDone) setMenu(false)
+})
+
+// kembali ke layar lebar: tutup panel supaya tidak tertinggal terbuka
+matchMedia('(min-width: 901px)').addEventListener?.('change', e => {
+  if (e.matches) setMenu(false)
+})
 
 // peringatan tetap untuk user yang terlambat mengembalikan buku
 function drawAlerts() {
@@ -730,9 +807,9 @@ function render(animate) {
   $('#auth').innerHTML = me
     ? `<button class="who" data-accounts title="Akun di perangkat ini">
          <span class="ava">${esc(me.name[0] || '?').toUpperCase()}${!S.set.email_verif || me.email_verified ? '' : '<i class="warn" title="E-mail belum diverifikasi">!</i>'}</span>
-         ${esc(me.name)}${isAdmin ? ' <b class="chip">admin</b>' : ''}
+         <span class="wname">${esc(me.name)}${isAdmin ? ' <b class="chip">admin</b>' : ''}</span>
        </button>`
-    : `<button class="btn" data-accounts>Masuk / Daftar</button>`
+    : `<button class="btn" data-accounts>Masuk<span class="dsk"> / Daftar</span></button>`
 
   const views = { katalog: viewKatalog, saya: viewSaya, admin: viewAdmin, pengaturan: viewPengaturan, pesan: viewPesan }
   $('#main').className = 'view' + (animate ? ' anim' : '')
@@ -1897,6 +1974,9 @@ function drawVersion() {
 
   const btn = $('#infobtn')
   if (btn) btn.classList.toggle('hasnew', infoHasNew())
+
+  drawHamb()
+  drawDrawerFoot()
 }
 
 // versi = v{VERSION_MAJOR}.{jumlah commit}. Jumlah commit dibaca dari header "Link" GitHub API.
@@ -2071,8 +2151,12 @@ document.addEventListener('click', async e => {
   // tutup modal
   if (e.target.id === 'modal' || find('close')) return closeModal()
 
+  // menu slide (HP): tombol hamburger, tombol tutup, dan area gelap
+  if (el = find('menu')) return setMenu(el.dataset.menu === 'open')
+
   // pindah halaman
   if (el = find('v')) {
+    setMenu(false)
     S.view = el.dataset.v
     S.pOpen = false
     render(true)
@@ -2095,7 +2179,10 @@ document.addEventListener('click', async e => {
   }
 
   // menu Informasi (!) dan tab-tabnya
-  if (el = find('info')) return openInfo(el.dataset.info || 'about')
+  if (el = find('info')) {
+    setMenu(false)
+    return openInfo(el.dataset.info || 'about')
+  }
   if (el = find('itab')) return openInfo(el.dataset.itab)
 
   // login / daftar / keluar
@@ -2108,7 +2195,10 @@ document.addEventListener('click', async e => {
   // chat, tema, akun
   if (find('chat')) return setChat(!S.chatOpen)
   if (el = find('themebtn')) return cycleTheme(el)
-  if (find('accounts')) return openAccounts()
+  if (find('accounts')) {
+    setMenu(false)
+    return openAccounts()
+  }
   if (el = find('forget')) return forgetAccount(el.dataset.forget)
   if (el = find('switch')) return switchAccount(el.dataset.switch)
 
@@ -2424,6 +2514,7 @@ db.auth.onAuthStateChange((event, session) => {
 
     // ganti akun / login / logout: tutup dialog konfirmasi yang masih terbuka, lalu kosongkan data akun sebelumnya
     closeAsk(false)
+    setMenu(false)
 
     S.me = null
     S.mine = []

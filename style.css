@@ -95,7 +95,7 @@ body {
 }
 
 .view.anim>* {
-    animation: masuk 0.35s both;
+    animation: masuk 0.35s backwards;
 }
 
 @keyframes masuk {
@@ -1356,11 +1356,27 @@ td .btn {
         display: none;
     }
 
-    .pesan.open .ppanel {
+    /* .pesan itu sendiri yang dibuat fixed layar penuh (bukan anaknya). Kalau anaknya yang fixed,
+       di sebagian perangkat ia ikut "terjebak" di dalam induk yang pernah dianimasikan, tingginya jadi 0,
+       dan hasilnya layar kosong. */
+    .pesan.open {
         position: fixed;
-        inset: 0;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
         z-index: 25;
         display: flex;
+        flex-direction: column;
+        background: var(--card);
+        animation: none;
+        transform: none;
+    }
+
+    .pesan.open .ppanel {
+        display: flex;
+        flex: 1;
+        min-height: 0;
         height: auto;
         border: 0;
         border-radius: 0;
@@ -1817,6 +1833,253 @@ td .btn {
 .row2 label {
     display: grid;
     gap: 0.25rem;
+}
+
+
+/* ---------- 8l. MENU SLIDE DI HP (hamburger di kiri logo) ---------- */
+/* Layar lebar: tombol & lapisan menu disembunyikan, nav tampil di header seperti biasa. */
+.hamb,
+.scrim,
+.drawer-head,
+.dfoot {
+    display: none;
+}
+
+.drawer {
+    display: contents;
+}
+
+.who .wname {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* HP & tablet kecil: nav jadi panel yang slide dari kiri */
+@media (max-width: 900px) {
+    .top {
+        gap: 0.6rem;
+        padding: 0.6rem 1rem;
+    }
+
+    .top h1 {
+        font-size: 1.2rem;
+        white-space: nowrap;
+    }
+
+    /* tombol hamburger */
+    .hamb {
+        position: relative;
+        display: grid;
+        flex: none;
+        color: var(--topink);
+    }
+
+    .bars {
+        display: grid;
+        gap: 4px;
+    }
+
+    .bars i {
+        display: block;
+        width: 1.05rem;
+        height: 2px;
+        border-radius: 2px;
+        background: currentColor;
+    }
+
+    .hamb .nb {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        margin: 0;
+        box-shadow: 0 0 0 2px var(--top);
+    }
+
+    .hamb.hasnew::after {
+        content: '';
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        width: 0.7rem;
+        height: 0.7rem;
+        border-radius: 50%;
+        background: #ef4444;
+        box-shadow: 0 0 0 2px var(--top);
+    }
+
+    /* Informasi (!) dan tema pindah ke dalam panel; akun di header tinggal avatar */
+    .top>#infobtn,
+    .top>#theme {
+        display: none;
+    }
+
+    .who {
+        padding: 0.2rem;
+    }
+
+    .who .wname,
+    .dsk {
+        display: none;
+    }
+
+    /* area gelap di belakang panel */
+    .scrim {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1;
+        display: block;
+        background: rgba(8, 8, 20, 0.6);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s, visibility 0.3s;
+    }
+
+    /* panel */
+    .drawer {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        width: min(300px, 84vw);
+        padding-top: env(safe-area-inset-top, 0px);
+        border-right: 1px solid var(--line);
+        background: var(--top);
+        color: var(--topink);
+        box-shadow: 8px 0 30px rgba(0, 0, 0, 0.35);
+        transform: translateX(-105%);
+        visibility: hidden;
+        transition: transform 0.3s cubic-bezier(0.3, 0.9, 0.3, 1), visibility 0.3s;
+    }
+
+    body.menu-open {
+        overflow: hidden;
+    }
+
+    /* header dinaikkan di atas gelembung chat saat menu terbuka */
+    body.menu-open .top {
+        z-index: 30;
+    }
+
+    body.menu-open .drawer {
+        transform: none;
+        visibility: visible;
+    }
+
+    body.menu-open .scrim {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .drawer-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1rem 0.6rem 1.2rem;
+        font-size: 1.3rem;
+        font-weight: 800;
+    }
+
+    .drawer-head span {
+        color: var(--pri2);
+    }
+
+    .drawer-x {
+        width: 2.2rem;
+        height: 2.2rem;
+        border: 0;
+        border-radius: 50%;
+        background: none;
+        color: var(--topmut);
+        font-size: 1.1rem;
+        cursor: pointer;
+    }
+
+    .drawer-x:hover {
+        color: var(--topink);
+    }
+
+    .drawer nav {
+        flex: 1;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        gap: 0.25rem;
+        padding: 0.4rem 0.8rem;
+        overflow-y: auto;
+    }
+
+    .drawer nav button,
+    .dbtn {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        padding: 0.8rem 1rem;
+        border: 0;
+        border-radius: 12px;
+        background: none;
+        color: var(--topmut);
+        font: inherit;
+        font-size: 1rem;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .drawer nav button .nb {
+        margin-left: auto;
+    }
+
+    .drawer nav button:hover,
+    .dbtn:hover {
+        background: rgba(127, 127, 160, 0.15);
+        color: var(--topink);
+    }
+
+    .drawer nav button.on {
+        background: var(--pri);
+        color: var(--onpri);
+    }
+
+    /* bagian bawah panel: akun, Informasi, tema (dinaikkan agar tidak tertutup watermark Netlify) */
+    .dfoot {
+        display: block;
+        padding: 0.6rem 0.8rem calc(3.6rem + env(safe-area-inset-bottom, 0px));
+        border-top: 1px solid var(--line);
+    }
+
+    .dbtn {
+        justify-content: space-between;
+        gap: 0.6rem;
+    }
+
+    .dbtn small {
+        color: var(--mut);
+        font-size: 0.72rem;
+    }
+
+    .dbtn.acc {
+        color: var(--topink);
+    }
+
+    .dbtn .ava {
+        width: 1.9rem;
+        height: 1.9rem;
+        margin-right: 0.3rem;
+        font-size: 0.85rem;
+    }
+
+    .dname {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 }
 
 

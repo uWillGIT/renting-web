@@ -13,9 +13,24 @@
 
 <body>
   <header class="top">
+    <!-- HP: tombol hamburger di kiri logo membuka menu slide -->
+    <button id="hamb" class="icon-btn hamb" data-menu="open" aria-label="Buka menu" aria-controls="drawer"
+      aria-expanded="false">
+      <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>
+      <i id="hamb-nb" class="nb" hidden></i>
+    </button>
     <h1>Pustaka<span>Kita</span> <button id="ver" class="ver" data-info="more" title="Lihat versi lengkap">v1.0</button>
     </h1>
-    <nav id="nav"></nav>
+    <!-- layar lebar: isinya tampil biasa di header. HP: menjadi panel slide dari kiri -->
+    <div id="drawer" class="drawer">
+      <div class="drawer-head">
+        <b>Pustaka<span>Kita</span></b>
+        <button class="drawer-x" data-menu="close" aria-label="Tutup menu">✕</button>
+      </div>
+      <nav id="nav"></nav>
+      <div id="dfoot" class="dfoot"></div>
+    </div>
+    <div id="scrim" class="scrim" data-menu="close"></div>
     <button id="infobtn" class="icon-btn info-btn" data-info="about" aria-label="Informasi" title="Informasi">!</button>
     <button id="theme" class="icon-btn" data-themebtn aria-label="Ganti tema"></button>
     <div id="auth"></div>
