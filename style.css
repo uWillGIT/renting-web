@@ -2085,6 +2085,526 @@ td .btn {
     }
 }
 
+/* ==========================================================
+   PustakaKita - ebook.css   (dimuat SETELAH style.css)
+   1. Katalog   2. Form admin   3. Pembaca   4. Layar kecil
+   ========================================================== */
+
+
+/* ---------- 1. KATALOG ---------- */
+/* pemilih Buku fisik / E-Book */
+.kinds {
+    display: flex;
+    gap: 0.3rem;
+    width: fit-content;
+    max-width: 100%;
+    margin-bottom: 1rem;
+    padding: 0.3rem;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--card);
+}
+
+.kinds button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.55rem 1.1rem;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: var(--mut);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.kinds button:hover {
+    color: var(--ink);
+}
+
+.kinds button.on {
+    background: var(--pri);
+    color: var(--onpri);
+}
+
+.kinds small {
+    min-width: 1.4rem;
+    padding: 0 0.4rem;
+    border-radius: 99px;
+    background: var(--soft);
+    color: var(--mut);
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.4rem;
+    text-align: center;
+}
+
+.kinds button.on small {
+    background: rgba(255, 255, 255, 0.22);
+    color: var(--onpri);
+}
+
+/* label E-Book di pojok sampul */
+.kbadge {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 1;
+    padding: 0.12rem 0.6rem;
+    border-radius: 99px;
+    background: var(--pri);
+    color: var(--onpri);
+    font-size: 0.72rem;
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+
+/* ---------- 2. FORM ADMIN ---------- */
+#bf[data-kind="ebook"] .only-fisik {
+    display: none;
+}
+
+#bf:not([data-kind="ebook"]) .only-ebook {
+    display: none;
+}
+
+.ebfields {
+    display: grid;
+    gap: 0.6rem;
+    padding: 0.8rem;
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+}
+
+.ebfields label {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.ebfields .check {
+    display: flex;
+}
+
+
+/* ---------- 3. PEMBACA ---------- */
+/* Pembaca selalu gelap (ruang baca). Z-index: di atas modal (20) & chat (25), di bawah toast (30) & dialog (35). */
+.rd {
+    --rd-ink: #0d0c22;
+    --rd-bar: rgba(22, 19, 54, 0.88);
+    --rd-fg: #f1efff;
+    --rd-mut: #a9a5d6;
+    --rd-acc: #9f8cff;
+    --rd-lift: 0px;
+    /* ruang di bawah bilah (naik di HP supaya tidak tertutup watermark Netlify; set 0 jika sudah tidak ada) */
+
+    position: fixed;
+    inset: 0;
+    z-index: 28;
+    overflow: hidden;
+    background: var(--rd-ink);
+    color: var(--rd-fg);
+    animation: rd-buka 0.3s both;
+}
+
+@keyframes rd-buka {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+}
+
+body.rd-open {
+    overflow: hidden;
+}
+
+.rd-stage {
+    position: absolute;
+    inset: 0;
+}
+
+/* ikon garis */
+.rd svg {
+    width: 1.3rem;
+    height: 1.3rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* bilah atas & bawah */
+.rd-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--rd-bar);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    transition: transform 0.28s cubic-bezier(0.3, 0.9, 0.3, 1), opacity 0.28s;
+}
+
+.rd-top {
+    top: 0;
+    padding: calc(0.5rem + env(safe-area-inset-top, 0px)) calc(0.7rem + env(safe-area-inset-right, 0px)) 0.5rem calc(0.7rem + env(safe-area-inset-left, 0px));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.rd-bot {
+    bottom: 0;
+    padding: 0.5rem calc(0.8rem + env(safe-area-inset-right, 0px)) calc(0.5rem + var(--rd-lift) + env(safe-area-inset-bottom, 0px)) calc(0.8rem + env(safe-area-inset-left, 0px));
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.rd.hide-ui .rd-top {
+    opacity: 0;
+    transform: translateY(-100%);
+    pointer-events: none;
+}
+
+.rd.hide-ui .rd-bot {
+    opacity: 0;
+    transform: translateY(100%);
+    pointer-events: none;
+}
+
+.rd-btn {
+    display: grid;
+    flex: none;
+    place-items: center;
+    min-width: 2.5rem;
+    height: 2.5rem;
+    border: 0;
+    border-radius: 12px;
+    background: none;
+    color: var(--rd-fg);
+    font: inherit;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+}
+
+.rd-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.rd-btn:active:not(:disabled) {
+    transform: scale(0.92);
+}
+
+.rd-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.rd .rd-btn:focus-visible,
+.rd .rd-sub:focus-visible,
+.rd .rd-scrub:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+}
+
+.rd-btn.wide {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0 0.75rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.rd-title {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+    padding: 0 0.3rem;
+}
+
+.rd-title b {
+    overflow: hidden;
+    font-size: 0.98rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rd-sub {
+    justify-self: start;
+    max-width: 100%;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    background: none;
+    color: var(--rd-mut);
+    font: inherit;
+    font-size: 0.74rem;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rd-sub:not(:disabled) {
+    color: var(--stamp);
+    text-decoration: underline dotted;
+    cursor: pointer;
+}
+
+/* tombol penanda: 3 keadaan */
+.mk.is-auto svg {
+    stroke-dasharray: 3.2 3.2;
+    opacity: 0.8;
+}
+
+.mk.is-else {
+    color: var(--stamp);
+}
+
+.mk.is-manual {
+    color: var(--stamp);
+}
+
+.mk.is-manual svg {
+    fill: var(--stamp);
+}
+
+/* penggeser halaman kustom */
+.rd-scrub {
+    position: relative;
+    display: grid;
+    flex: 1;
+    align-items: center;
+    height: 2.5rem;
+    margin: 0 0.3rem;
+    cursor: pointer;
+    touch-action: none;
+}
+
+.rd-trk {
+    position: relative;
+    height: 6px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.rd-fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: calc(var(--p, 0) * 100%);
+    border-radius: 99px;
+    background: var(--rd-acc);
+}
+
+.rd-thumb {
+    position: absolute;
+    top: 50%;
+    left: calc(var(--p, 0) * 100%);
+    width: 18px;
+    height: 18px;
+    margin: -9px 0 0 -9px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 0 0 4px rgba(159, 140, 255, 0.35);
+    transition: transform 0.15s;
+}
+
+.rd-scrub:active .rd-thumb {
+    transform: scale(1.25);
+}
+
+/* penanda manual di penggeser */
+.rd-mk {
+    position: absolute;
+    top: -9px;
+    width: 10px;
+    height: 20px;
+    margin-left: -5px;
+    background: var(--stamp);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+}
+
+.rd-tip {
+    position: absolute;
+    bottom: 2.2rem;
+    padding: 0.15rem 0.65rem;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #1b1740;
+    font-size: 0.82rem;
+    font-weight: 800;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.rd-count {
+    min-width: 5rem;
+    color: var(--rd-fg);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+
+/* halaman */
+.rd-pg {
+    position: relative;
+    flex: none;
+    border-radius: 2px;
+    background: #f4f3fb;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.rd-pg canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 2px;
+}
+
+/* halaman yang belum selesai digambar: nomor halaman samar */
+.rd-pg::before {
+    content: attr(data-n);
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #d6d2ee;
+    font-size: clamp(2rem, 9vw, 4.5rem);
+    font-weight: 800;
+}
+
+.rd-pg.ready::before {
+    display: none;
+}
+
+/* pita penanda manual (cap kuning, senada kode peminjaman) */
+.rib {
+    position: absolute;
+    top: -3px;
+    right: 1rem;
+    display: none;
+    width: 1.5rem;
+    height: 2.6rem;
+    background: var(--stamp);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 76%, 0 100%);
+}
+
+.rd-pg.marked .rib {
+    display: block;
+    animation: rd-jatuh 0.45s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+@keyframes rd-jatuh {
+    from {
+        transform: translateY(-110%);
+    }
+}
+
+/* mode horizontal: satu halaman per layar, digeser */
+.rd-h {
+    height: 100%;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.rd-track {
+    display: flex;
+    height: 100%;
+    transition: transform 0.38s cubic-bezier(0.3, 0.9, 0.3, 1);
+    will-change: transform;
+}
+
+.rd-track.drag {
+    transition: none;
+}
+
+.rd-slide {
+    display: grid;
+    flex: 0 0 100%;
+    place-items: center;
+    height: 100%;
+}
+
+/* mode vertikal: gulir terus-menerus */
+.rd-v {
+    position: relative;
+    height: 100%;
+    padding: calc(4.2rem + env(safe-area-inset-top, 0px)) 0.5rem 5rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.rd-v .rd-pg {
+    margin: 0 auto 14px;
+}
+
+
+/* ---------- 4. LAYAR KECIL ---------- */
+@media (max-width: 900px) {
+    .rd {
+        --rd-lift: 3.2rem;
+    }
+}
+
+@media (max-width: 560px) {
+    .kinds {
+        width: 100%;
+    }
+
+    .kinds button {
+        flex: 1;
+        padding: 0.55rem 0.6rem;
+    }
+
+    .rd-btn.wide .lbl {
+        display: none;
+    }
+
+    .rd-btn.wide {
+        padding: 0;
+        min-width: 2.5rem;
+    }
+
+    .rd-count {
+        min-width: 4.2rem;
+        font-size: 0.8rem;
+    }
+}
+
+/* HP landscape: bilah dibuat tipis supaya halaman lebih lega */
+@media (max-height: 460px) {
+    .rd-btn {
+        min-width: 2.2rem;
+        height: 2.2rem;
+    }
+
+    .rd-scrub {
+        height: 2.2rem;
+    }
+
+    .rd-top {
+        padding-top: calc(0.3rem + env(safe-area-inset-top, 0px));
+        padding-bottom: 0.3rem;
+    }
+
+    .rd-bot {
+        padding-top: 0.3rem;
+    }
+
+    .rd-v {
+        padding-top: 3.4rem;
+    }
+}
+
 
 /* ---------- 9. LAIN-LAIN ---------- */
 #toasts {

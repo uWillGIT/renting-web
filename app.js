@@ -1,7 +1,8 @@
 /* ==========================================================
    PustakaKita - app.js
    1. Konfigurasi   2. Data tetap   3. State   4. Helper   5. Tema
-   6. Ambil data    7. Tampilan     8. Chat    9. Modal    10. Event   11. Mulai
+   6. Ambil data    7. Tampilan     8. Chat    9. Modal    10. Event
+   10b. E-Book      11. Mulai
    ========================================================== */
 
 
@@ -86,7 +87,7 @@ const LIMITED_HTML = ' - <span class="ltd">LIMITED TIME!</span>'
 const GITHUB_REPO = 'OWNER/REPO'    // <-- GANTI, contoh: 'username/pustakakita' (repo harus public)
 const VERSION_MAJOR = 1
 const VERSION_FALLBACK = 'v1.0'     // dipakai jika GitHub tidak bisa dihubungi / repo belum diisi
-const RELEASE_ID = '2026-10-24c'    // ganti setiap rilis baru supaya tanda NEW! muncul lagi
+const RELEASE_ID = '2026-10-29a'    // ganti setiap rilis baru supaya tanda NEW! muncul lagi
 
 // data tab Developer (ubah sesukamu)
 const DEVELOPER = {
@@ -100,6 +101,16 @@ const DEVELOPER = {
 // Urutan: yang terbaru di atas. Tiap rilis baru = tambah satu entri baru di paling atas,
 // entri lama jangan dihapus/diubah supaya riwayatnya tetap ada. Jangan lupa ganti RELEASE_ID.
 const CHANGELOG = [
+  {
+    title: 'E-Book',
+    date: '29 Okt 2026',
+    items: [
+      'Jenis buku baru: E-Book (PDF), dengan katalog terpisah dari buku fisik.',
+      'E-Book bisa dibaca online atau diunduh (jika diizinkan admin).',
+      'Pembaca E-Book khusus dengan mode Horizontal & Vertikal yang mengikuti rotasi perangkat.',
+      'Penanda halaman: halaman terakhir dibaca tersimpan otomatis, atau tandai manual.'
+    ]
+  },
   {
     title: 'Perbaikan daftar Pesan di HP',
     date: '24 Okt 2026',
@@ -160,6 +171,7 @@ const S = {
   q: '',
   cat: '',
   f: '',
+  kind: 'fisik',   // katalog yang sedang dibuka: 'fisik' atau 'ebook'
   thread: null,    // admin: id user yang sedang dibuka chat-nya
   lastSend: 0,
   chatOpen: false,
@@ -230,6 +242,8 @@ function isMobile() {
 
 // label stok (+ LIMITED TIME kuning jika buku ditandai limited dan stok masih ada)
 function stockLabel(b) {
+  if (b.kind === 'ebook') return '<em class="ok">Baca online · PDF</em>'
+
   const limited = b.limited && b.stock > 0 ? LIMITED_HTML : ''
   return `<em class="${b.stock ? 'ok' : 'no'}">${b.stock ? 'Stok ' + b.stock + limited : 'Stok habis'}</em>`
 }
@@ -844,6 +858,7 @@ function viewKatalog() {
   const addButton = S.me?.role === 'admin' ? '<button class="btn" data-add>Tambah buku</button>' : ''
 
   return `
+    ${kindTabs()}
     <div class="bar">
       <input id="q" placeholder="Cari judul atau penulis" value="${esc(S.q)}">
       <select id="cat">${categoryOptions(S.cat, true)}</select>
@@ -898,7 +913,7 @@ function drawGrid() {
   const list = S.books.filter(b => {
     const matchCategory = !S.cat || b.category === S.cat
     const matchText = (b.title + ' ' + (b.author || '')).toLowerCase().includes(keyword)
-    return matchCategory && matchText
+    return matchCategory && matchText && (b.kind || 'fisik') === S.kind
   })
 
   sortBooks(list)
@@ -916,7 +931,7 @@ function drawGrid() {
 
   $('#grid').innerHTML = list.slice(start, start + PER_PAGE).map(b => `
     <article class="card" data-card="${b.id}">
-      <div class="cover">📖${b.cover ? `<img src="${esc(b.cover)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>
+      <div class="cover">📖${b.cover ? `<img src="${esc(b.cover)}" alt="" loading="lazy" onerror="this.remove()">` : ''}${kindBadge(b)}</div>
       <div class="ci">
         <h3>${esc(b.title)}</h3>
         <p>${esc(b.author)}</p>
@@ -1492,7 +1507,13 @@ async function openBook(id) {
       <button class="btn" data-book="${b.id}" ${canBook ? '' : 'disabled'}>Booking buku</button>`
   }
 
-  const durationNote = me?.role === 'admin' ? '' : `
+  // E-Book: tombol baca/unduh menggantikan tombol booking
+  if (isEbook(b)) {
+    actions = ebookActions(b, me)
+    note = ''
+  }
+
+  const durationNote = isEbook(b) || me?.role === 'admin' ? '' : `
     <p class="hint durnote">⏱️ ${S.set.duration_var ? 'Pilih lama pinjam sesukamu.' : `Durasi pinjam ${DEFAULT_DAYS} hari.`} Buku bisa dikembalikan kapan saja.</p>`
 
   modal(`
@@ -1510,7 +1531,7 @@ async function openBook(id) {
     <p class="hint">${esc(b.author)} · ${esc(b.category)} · ID ${b.id}</p>
     ${bookFacts(b)}
     <p style="margin-top:.6rem">${esc(b.description) || 'Belum ada deskripsi.'}</p>
-    <p class="${b.stock ? 'ok' : 'no'}" style="margin-top:.6rem"><b>${b.stock ? 'Stok tersedia: ' + b.stock + (b.limited ? LIMITED_HTML : '') : 'Stok habis'}</b></p>
+    ${stockLine(b)}
     ${durationNote}
     <div class="act">${actions}</div>
     <p class="hint" style="margin-top:.6rem">${note}</p>`)
@@ -1566,7 +1587,7 @@ function drawPreview() {
           <h3>${esc(f.title.value) || 'Judul buku'}</h3>
           <p>${esc(f.author.value) || 'Penulis'}</p>
           ${bookMeta({ publish_year: f.year.value, pages: f.pages.value })}
-          ${stockLabel({ stock, limited })}
+          ${stockLabel({ stock, limited, kind: f.kind?.value })}
         </div>
       </article>
       <div class="prev-slides">
@@ -1587,11 +1608,12 @@ function bookForm(b = {}) {
 
   modal(`
     <h2>${b.id ? 'Edit buku' : 'Tambah buku'}</h2>
-    <form id="bf" data-id="${b.id || ''}">
+    <form id="bf" data-id="${b.id || ''}" data-kind="${formKind(b)}">
       ${field('title', 'Judul', 'required')}
       ${field('author', 'Penulis')}
       <select name="category" required>${categoryOptions(b.category, false)}</select>
-      <input name="stock" type="number" min="0" placeholder="Stok" value="${b.stock ?? 1}" required>
+      ${ebookFormFields(b)}
+      <input name="stock" class="only-fisik" type="number" min="0" placeholder="Stok" value="${b.stock ?? 1}" required>
       <div class="row2">
         <label class="hint">Tahun terbit
           <input name="year" type="number" min="1000" max="${new Date().getFullYear() + 1}" placeholder="mis. 2019" value="${esc(b.publish_year)}">
@@ -1600,7 +1622,7 @@ function bookForm(b = {}) {
           <input name="pages" type="number" min="1" max="10000" placeholder="mis. 320" value="${esc(b.pages)}">
         </label>
       </div>
-      <label class="check">
+      <label class="check only-fisik">
         <input type="checkbox" name="limited" ${b.limited ? 'checked' : ''}>
         <span>LIMITED TIME <small class="hint">(label kuning di samping stok)</small></span>
       </label>
@@ -2117,6 +2139,7 @@ function infoBody(tab) {
     <ul>
       <li>Katalog buku dengan pencarian, kategori, dan halaman.</li>
       <li>Booking buku ${S.set.duration_var ? 'dengan durasi pilihan' : `dengan durasi ${DEFAULT_DAYS} hari`}, dan bisa dikembalikan kapan saja.</li>
+      <li>E-Book (PDF) yang bisa dibaca online atau diunduh, lengkap dengan penanda halaman.</li>
       <li>Pesan langsung dengan admin untuk setiap peminjaman.</li>
       <li>Chat Customer Service untuk pertanyaan umum.</li>
     </ul>`
@@ -2474,6 +2497,10 @@ document.addEventListener('submit', async e => {
       slides.push(url)
     }
 
+    // jenis buku: fisik atau E-Book (unggah PDF + kolom tambahan)
+    const extra = await ebookSubmit(form, data)
+    if (!extra) return
+
     const row = {
       title: data.title,
       author: data.author,
@@ -2484,7 +2511,8 @@ document.addEventListener('submit', async e => {
       limited: !!data.limited,
       cover,
       description: data.description,
-      slides
+      slides,
+      ...extra
     }
     const id = form.dataset.id
 
@@ -2504,6 +2532,959 @@ document.addEventListener('submit', async e => {
 
   // kirim pesan peminjaman
   if (form.id === 'pf') sendPesan(form)
+})
+
+
+/* ==========================================================
+   10b. E-BOOK
+   E1. Dasar   E2. Katalog & detail   E3. Form admin   E4. Unduh
+   E5. Penanda   E6. Pembaca   E7. Event
+   Membutuhkan tabel/kolom dari ebook-migration.sql.
+   ========================================================== */
+
+/* ---------- E1. DASAR ---------- */
+const EB = {
+  bucket: 'ebooks',
+  maxMB: 50,                       // samakan dengan batas bucket di Supabase
+  pdfjs: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+  worker: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+  saveDelay: 2000,                 // jeda simpan penanda otomatis (ms)
+  urlTTL: 6 * 3600                 // masa berlaku tautan PDF (detik)
+}
+
+const isEbook = b => b?.kind === 'ebook'
+const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n))
+const findBook = id => S.books.find(b => String(b.id) === String(id))
+
+// ikon garis (SVG) untuk semua tombol pembaca
+const IC = {
+  close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  prev: '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',
+  next: '<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>',
+  mark: '<svg viewBox="0 0 24 24"><path d="M7 3h10a1 1 0 011 1v17l-6-4-6 4V4a1 1 0 011-1z"/></svg>',
+  down: '<svg viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14"/></svg>',
+  auto: '<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 01-14 5.3M4 12a8 8 0 0114-5.3M18 3v4h-4M6 21v-4h4"/></svg>',
+  horiz: '<svg viewBox="0 0 24 24"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></svg>',
+  vert: '<svg viewBox="0 0 24 24"><path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4"/></svg>'
+}
+
+let pdfReady = null
+
+// pustaka PDF dimuat hanya saat pertama kali dibutuhkan (tidak membebani halaman katalog)
+function loadPdfJs() {
+  if (window.pdfjsLib && pdfReady) return pdfReady
+
+  pdfReady = new Promise((ok, fail) => {
+    const script = document.createElement('script')
+    script.src = EB.pdfjs
+    script.onload = () => {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = EB.worker
+      ok()
+    }
+    script.onerror = () => {
+      pdfReady = null
+      fail(new Error('pembaca PDF gagal dimuat'))
+    }
+    document.head.append(script)
+  })
+
+  return pdfReady
+}
+
+async function pdfPages(file) {
+  try {
+    await loadPdfJs()
+    const doc = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise
+    const total = doc.numPages
+    doc.destroy()
+    return total
+  } catch (e) {
+    return null
+  }
+}
+
+
+/* ---------- E2. KATALOG & DETAIL ---------- */
+// pemilih katalog: Buku fisik / E-Book (dipanggil di viewKatalog)
+function kindTabs() {
+  const count = kind => S.books.filter(b => (b.kind || 'fisik') === kind).length
+
+  const tab = (kind, icon, label) => `
+    <button type="button" role="tab" class="${S.kind === kind ? 'on' : ''}" aria-selected="${S.kind === kind}" data-ekind="${kind}">
+      <span aria-hidden="true">${icon}</span>${label}<small>${count(kind)}</small>
+    </button>`
+
+  return `<div class="kinds" role="tablist" aria-label="Jenis buku">${tab('fisik', '📚', 'Buku fisik')}${tab('ebook', '📱', 'E-Book')}</div>`
+}
+
+function kindBadge(b) {
+  return isEbook(b) ? '<span class="kbadge">E-Book</span>' : ''
+}
+
+// baris stok / ketersediaan di detail buku
+function stockLine(b) {
+  if (isEbook(b)) {
+    const how = b.allow_download === false ? 'hanya baca online' : 'baca online atau unduh'
+    return `<p class="ok" style="margin-top:.6rem"><b>E-Book PDF, ${how}</b></p>`
+  }
+
+  return `<p class="${b.stock ? 'ok' : 'no'}" style="margin-top:.6rem"><b>${b.stock ? 'Stok tersedia: ' + b.stock + (b.limited ? LIMITED_HTML : '') : 'Stok habis'}</b></p>`
+}
+
+// tombol di detail E-Book (pengganti tombol booking)
+function ebookActions(b, me) {
+  if (!me) return '<p class="hint">Masuk dulu untuk membaca atau mengunduh E-Book ini.</p>'
+
+  const admin = me.role === 'admin'
+    ? `<button class="btn ghost" data-edit="${b.id}">Edit</button>
+       <button class="btn danger" data-del="${b.id}">Hapus</button>`
+    : ''
+
+  if (!b.pdf_path) return `<p class="hint">File PDF belum diunggah.</p>${admin}`
+
+  return `
+    <button class="btn" data-eread="${b.id}">📖 Baca online</button>
+    ${b.allow_download === false ? '' : `<button class="btn ghost" data-edl="${b.id}">Unduh PDF</button>`}
+    ${admin}`
+}
+
+
+/* ---------- E3. FORM ADMIN ---------- */
+const formKind = b => b.kind || (b.id ? 'fisik' : S.kind)
+
+function ebookFormFields(b) {
+  const kind = formKind(b)
+
+  return `
+    <select name="kind" aria-label="Jenis buku">
+      <option value="fisik" ${kind === 'fisik' ? 'selected' : ''}>Buku fisik / cetak</option>
+      <option value="ebook" ${kind === 'ebook' ? 'selected' : ''}>E-Book (PDF)</option>
+    </select>
+    <div class="only-ebook ebfields">
+      <label class="hint">File PDF (maks. ${EB.maxMB} MB)${b.pdf_path ? '. Sudah ada, pilih file baru untuk mengganti.' : ''}
+        <input type="file" name="pdffile" accept="application/pdf">
+      </label>
+      <label class="check">
+        <input type="checkbox" name="dl" ${b.allow_download === false ? '' : 'checked'}>
+        <span>Boleh diunduh <small class="hint">(mati: hanya bisa dibaca online)</small></span>
+      </label>
+      <input type="hidden" name="pdf_old" value="${esc(b.pdf_path)}">
+    </div>`
+}
+
+// dipanggil saat tombol "Simpan buku": unggah PDF dan kembalikan kolom tambahan untuk baris buku
+async function ebookSubmit(form, data) {
+  if (data.kind !== 'ebook') return { kind: 'fisik', pdf_path: null, allow_download: true }
+
+  const extra = {
+    kind: 'ebook',
+    stock: 0,
+    limited: false,
+    allow_download: !!data.dl,
+    pdf_path: data.pdf_old || null
+  }
+
+  const file = form.pdffile.files[0]
+
+  if (file) {
+    if (file.type !== 'application/pdf' || file.size > EB.maxMB * 1024 * 1024) {
+      toast(`Hanya file PDF, maksimal ${EB.maxMB} MB`, true)
+      return null
+    }
+
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${file.name.replace(/[^\w.-]/g, '_')}`
+
+    busy(1)
+    const upload = await db.storage.from(EB.bucket).upload(path, file, { contentType: 'application/pdf' })
+    busy(-1)
+
+    if (upload.error) {
+      toast(upload.error.message, true)
+      return null
+    }
+
+    extra.pdf_path = path
+
+    // jumlah halaman diisi otomatis jika admin tidak mengisinya
+    if (!data.pages) {
+      const total = await pdfPages(file)
+      if (total) extra.pages = total
+    }
+  }
+
+  if (!extra.pdf_path) {
+    toast('Pilih file PDF untuk E-Book ini', true)
+    return null
+  }
+
+  return extra
+}
+
+
+/* ---------- E4. UNDUH ---------- */
+async function downloadEbook(id) {
+  const b = findBook(id)
+
+  if (!S.me) return toast('Masuk dulu untuk mengunduh', true)
+  if (!b?.pdf_path || b.allow_download === false) return toast('E-Book ini tidak bisa diunduh', true)
+
+  const name = (b.title.replace(/[\\/:*?"<>|]+/g, '').trim() || 'ebook') + '.pdf'
+
+  busy(1)
+  const { data, error } = await db.storage.from(EB.bucket).createSignedUrl(b.pdf_path, 120, { download: name })
+  busy(-1)
+
+  if (error) return toast(error.message, true)
+
+  const link = document.createElement('a')
+  link.href = data.signedUrl
+  link.download = name
+  document.body.append(link)
+  link.click()
+  link.remove()
+}
+
+
+/* ---------- E5. PENANDA HALAMAN ---------- */
+// Satu baris per user per buku:
+//   auto_page   halaman terakhir dibaca (otomatis, diperbarui saat membaca / menutup)
+//   manual_page penanda buatan user. Jika ada, penanda otomatis DIBATALKAN (auto_page dikosongkan).
+// Cadangan di perangkat (localStorage) menyelamatkan halaman terakhir jika tab ditutup mendadak.
+const markKey = id => `eb-last-${S.me.id}-${id}`
+
+function readLocal(id) {
+  try {
+    return JSON.parse(localStorage.getItem(markKey(id)))
+  } catch (e) {
+    return null
+  }
+}
+
+async function fetchMark(bookId) {
+  const { data } = await db.from('ebook_marks').select('*')
+    .eq('user_id', S.me.id)
+    .eq('book_id', bookId)
+    .maybeSingle()
+
+  return data || null
+}
+
+function saveMark(bookId, fields) {
+  return db.from('ebook_marks').upsert(
+    { user_id: S.me.id, book_id: bookId, updated_at: new Date().toISOString(), ...fields },
+    { onConflict: 'user_id,book_id' }
+  )
+}
+
+
+/* ---------- E6. PEMBACA ---------- */
+let R = null   // keadaan pembaca yang sedang terbuka (null = tertutup)
+
+const MODES = ['auto', 'h', 'v']
+const MODE_LABEL = { auto: 'Otomatis', h: 'Horizontal', v: 'Vertikal' }
+const MODE_IC = { auto: IC.auto, h: IC.horiz, v: IC.vert }
+
+function rdDir() {
+  if (R.mode !== 'auto') return R.mode
+  return matchMedia('(orientation: landscape)').matches ? 'h' : 'v'
+}
+
+// ukuran kotak halaman: horizontal = muat di layar, vertikal = selebar layar (maks. 920px)
+function rdFit(ratio) {
+  const stage = R.el.querySelector('.rd-stage')
+  const aw = stage.clientWidth
+  const ah = stage.clientHeight
+
+  if (R.dir === 'h') {
+    const w = Math.max(80, Math.min(aw - 16, (ah - 16) * ratio))
+    return { w, h: w / ratio }
+  }
+
+  const w = Math.min(aw - 16, 920)
+  return { w, h: w / ratio }
+}
+
+async function openReader(id) {
+  const b = findBook(id)
+
+  if (R) return
+  if (!S.me) return toast('Masuk dulu untuk membaca E-Book', true)
+  if (!b?.pdf_path) return toast('File E-Book belum tersedia', true)
+
+  let pdf, mark, ratio
+
+  busy(1)
+  try {
+    await loadPdfJs()
+
+    const signed = await db.storage.from(EB.bucket).createSignedUrl(b.pdf_path, EB.urlTTL)
+    if (signed.error) throw signed.error
+
+      ;[pdf, mark] = await Promise.all([
+        pdfjsLib.getDocument({ url: signed.data.signedUrl }).promise,
+        fetchMark(b.id)
+      ])
+
+    const first = (await pdf.getPage(1)).getViewport({ scale: 1 })
+    ratio = first.width / first.height
+  } catch (err) {
+    return toast('E-Book gagal dibuka: ' + (err.message || 'periksa koneksimu'), true)
+  } finally {
+    busy(-1)
+  }
+
+  // mulai dari: penanda manual > halaman terakhir dibaca (server atau cadangan perangkat) > halaman 1
+  const manual = mark?.manual_page || null
+  const local = readLocal(b.id)
+  let start = manual
+  let from = manual ? 'penanda' : ''
+
+  if (!start) {
+    const localNewer = local && (!mark || local.t > Date.parse(mark.updated_at))
+    start = localNewer ? local.p : (mark?.auto_page || 1)
+    if (start > 1) from = 'terakhir'
+  }
+  start = clamp(start, 1, pdf.numPages)
+
+  let mode = 'auto'
+  try {
+    mode = localStorage.getItem('eb-mode') || 'auto'
+  } catch (e) { }
+
+  R = {
+    b, pdf, ratio,
+    n: pdf.numPages,
+    page: start,
+    saved: start,
+    manual,
+    mode: MODES.includes(mode) ? mode : 'auto',
+    dir: 'v',
+    pgs: [],
+    rendered: new Set(),
+    gen: 0,
+    lock: 0,
+    chrome: true,
+    hold: false,
+    dirty: false,
+    ac: new AbortController(),
+    prevFocus: document.activeElement
+  }
+
+  rdShell()
+  rdBuild()
+  rdGo(start, false)
+  rdBind()
+  history.pushState({ rd: 1 }, '', '#baca=' + b.id)
+  document.body.classList.add('rd-open')
+  R.el.querySelector('[data-rclose]').focus({ preventScroll: true })
+  rdChrome(true)
+
+  if (from) {
+    toast(from === 'penanda'
+      ? `Dilanjutkan dari penanda, halaman ${start}`
+      : `Dilanjutkan dari halaman ${start} (terakhir dibaca)`)
+  }
+}
+
+function rdShell() {
+  const b = R.b
+  const el = document.createElement('div')
+
+  el.className = 'rd'
+  el.setAttribute('role', 'dialog')
+  el.setAttribute('aria-modal', 'true')
+  el.setAttribute('aria-label', 'Membaca ' + b.title)
+
+  el.innerHTML = `
+    <div class="rd-stage"></div>
+
+    <header class="rd-bar rd-top">
+      <button class="rd-btn" data-rclose aria-label="Tutup pembaca">${IC.close}</button>
+      <div class="rd-title">
+        <b>${esc(b.title)}</b>
+        <button class="rd-sub" data-rjump type="button"></button>
+      </div>
+      <button class="rd-btn wide" data-rmode><span class="ico"></span><span class="lbl"></span></button>
+      ${b.allow_download === false ? '' : `<button class="rd-btn" data-rdlr aria-label="Unduh PDF" title="Unduh PDF">${IC.down}</button>`}
+      <button class="rd-btn mk" data-rmark>${IC.mark}</button>
+    </header>
+
+    <footer class="rd-bar rd-bot">
+      <button class="rd-btn" data-rstep="-1" aria-label="Halaman sebelumnya">${IC.prev}</button>
+      <div class="rd-scrub" role="slider" tabindex="0" aria-label="Halaman" aria-valuemin="1" aria-valuemax="${R.n}">
+        <div class="rd-trk"><i class="rd-fill"></i><i class="rd-mk" hidden></i><b class="rd-thumb"></b></div>
+        <span class="rd-tip" hidden></span>
+      </div>
+      <output class="rd-count"></output>
+      <button class="rd-btn" data-rstep="1" aria-label="Halaman berikutnya">${IC.next}</button>
+    </footer>`
+
+  document.body.append(el)
+  R.el = el
+}
+
+// (re)bangun daftar halaman sesuai arah baca saat ini
+function rdBuild() {
+  const stage = R.el.querySelector('.rd-stage')
+
+  R.rendered.forEach(n => R.pgs[n]?._task?.cancel())
+  R.rendered.clear()
+  R.gen++
+  R.dir = rdDir()
+  stage.dataset.dir = R.dir
+
+  const cell = n => `<div class="rd-pg" data-n="${n}"><canvas></canvas><i class="rib"></i></div>`
+  const cells = Array.from({ length: R.n }, (_, i) => cell(i + 1))
+
+  stage.innerHTML = R.dir === 'h'
+    ? `<div class="rd-h"><div class="rd-track">${cells.map(c => `<div class="rd-slide">${c}</div>`).join('')}</div></div>`
+    : `<div class="rd-v">${cells.join('')}</div>`
+
+  R.pgs = [null, ...stage.querySelectorAll('.rd-pg')]
+  R.w = stage.clientWidth
+  R.h = stage.clientHeight
+  R.lastY = 0
+
+  const box = rdFit(R.ratio)
+  R.pgs.forEach(pg => {
+    if (!pg) return
+    pg.style.width = box.w + 'px'
+    pg.style.height = box.h + 'px'
+  })
+
+  rdPaintMark()
+  rdDrawMode()
+
+  if (R.dir === 'h') {
+    R.track = stage.querySelector('.rd-track')
+    R.v = null
+    rdBindSwipe(stage.querySelector('.rd-h'))
+  } else {
+    R.v = stage.querySelector('.rd-v')
+    R.track = null
+    R.v.addEventListener('scroll', rdOnScroll, { passive: true })
+  }
+}
+
+function rdRelayout() {
+  if (!R) return
+  const keep = R.page
+  rdBuild()
+  rdGo(keep, false)
+}
+
+function rdMaybeRelayout() {
+  if (!R) return
+  const stage = R.el.querySelector('.rd-stage')
+  const turned = rdDir() !== R.dir
+  const resized = Math.abs(stage.clientWidth - R.w) > 40 || (R.dir === 'h' && Math.abs(stage.clientHeight - R.h) > 80)
+
+  if (turned || resized) rdRelayout()
+}
+
+// pindah ke halaman n
+function rdGo(n, smooth = true) {
+  R.page = clamp(Math.round(n), 1, R.n)
+
+  if (R.dir === 'h') {
+    rdPlace(smooth)
+  } else {
+    R.lock = Date.now() + (smooth ? 700 : 120)
+    const top = R.page === 1 ? 0 : R.pgs[R.page].offsetTop - 14
+    R.v.scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' })
+  }
+
+  rdSync()
+}
+
+function rdPlace(animate) {
+  if (!R.track) return
+  R.track.classList.toggle('drag', !animate)   // "drag" = tanpa animasi
+  R.track.style.transform = `translateX(${-(R.page - 1) * 100}%)`
+}
+
+// perbarui semua tampilan yang bergantung pada halaman aktif
+function rdSync() {
+  const { page, n, el } = R
+  const f = n > 1 ? (page - 1) / (n - 1) : 0
+  const onThis = R.manual === page
+
+  el.style.setProperty('--p', f)
+  el.querySelector('.rd-count').value = `${page} / ${n}`
+  el.querySelector('.rd-scrub').setAttribute('aria-valuenow', page)
+  el.querySelector('[data-rstep="-1"]').disabled = page <= 1
+  el.querySelector('[data-rstep="1"]').disabled = page >= n
+
+  const mk = el.querySelector('.rd-mk')
+  mk.hidden = !R.manual
+  if (R.manual) mk.style.left = (n > 1 ? (R.manual - 1) / (n - 1) * 100 : 0) + '%'
+
+  const btn = el.querySelector('[data-rmark]')
+  const label = onThis
+    ? `Hapus penanda di halaman ${page}`
+    : R.manual ? `Pindahkan penanda ke halaman ${page}` : `Tandai halaman ${page}`
+
+  btn.className = 'rd-btn mk ' + (onThis ? 'is-manual' : R.manual ? 'is-else' : 'is-auto')
+  btn.setAttribute('aria-pressed', String(onThis))
+  btn.setAttribute('aria-label', label)
+  btn.title = label
+
+  const sub = el.querySelector('[data-rjump]')
+  sub.disabled = !R.manual || onThis
+  sub.textContent = !R.manual
+    ? 'Halaman terakhir tersimpan otomatis'
+    : onThis ? 'Penanda ada di halaman ini' : `Penanda di halaman ${R.manual}, ketuk untuk ke sana`
+
+  rdWindow()
+
+  // simpan halaman terakhir (otomatis) hanya jika halaman benar-benar berubah
+  if (page !== R.saved) {
+    R.saved = page
+    rdQueueSave()
+  }
+}
+
+function rdPaintMark() {
+  R.pgs.forEach(pg => pg?.classList.remove('marked'))
+  if (R.manual) R.pgs[R.manual]?.classList.add('marked')
+}
+
+/* --- menggambar halaman (hanya yang dekat dengan halaman aktif) --- */
+function rdWindow() {
+  const p = R.page
+  const back = R.dir === 'h' ? 1 : 2
+  const ahead = R.dir === 'h' ? 1 : 3
+
+  for (let n = Math.max(1, p - back); n <= Math.min(R.n, p + ahead); n++) rdRender(n)
+  R.rendered.forEach(n => {
+    if (n < p - 5 || n > p + 6) rdRelease(n)
+  })
+}
+
+async function rdRender(n) {
+  const pg = R.pgs[n]
+  if (!pg || pg._on) return
+
+  pg._on = true
+  R.rendered.add(n)
+  const gen = R.gen
+
+  try {
+    const page = await R.pdf.getPage(n)
+    if (gen !== R.gen || !R.rendered.has(n)) return
+
+    const base = page.getViewport({ scale: 1 })
+    const box = rdFit(base.width / base.height)
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    const view = page.getViewport({ scale: (box.w / base.width) * dpr })
+    const canvas = pg.querySelector('canvas')
+
+    pg.style.width = box.w + 'px'
+    pg.style.height = box.h + 'px'
+    canvas.width = Math.floor(view.width)
+    canvas.height = Math.floor(view.height)
+
+    pg._task = page.render({ canvasContext: canvas.getContext('2d'), viewport: view })
+    await pg._task.promise
+
+    if (gen === R.gen) pg.classList.add('ready')
+  } catch (err) {
+    if (err?.name === 'RenderingCancelledException') return
+    pg._on = false
+    R.rendered.delete(n)
+  }
+}
+
+function rdRelease(n) {
+  const pg = R.pgs[n]
+  R.rendered.delete(n)
+  if (!pg) return
+
+  pg._task?.cancel()
+  pg._on = false
+  pg.classList.remove('ready')
+
+  const canvas = pg.querySelector('canvas')
+  canvas.width = 0
+  canvas.height = 0
+}
+
+/* --- mode vertikal: halaman aktif dihitung dari posisi gulir --- */
+function rdOnScroll() {
+  if (!R || R.raf) return
+
+  R.raf = requestAnimationFrame(() => {
+    if (!R) return
+    R.raf = 0
+
+    const v = R.v
+    const y = v.scrollTop
+
+    // gulir naik: tampilkan bilah, gulir turun: sembunyikan
+    if (Math.abs(y - R.lastY) > 14) {
+      if (y < R.lastY || y < 30) rdChrome(true)
+      else if (!R.hold) rdChrome(false, true)
+      R.lastY = y
+    }
+
+    if (Date.now() < R.lock) return
+
+    const mid = y + v.clientHeight * 0.35
+    let n = R.page
+
+    while (n < R.n && R.pgs[n + 1].offsetTop - 14 <= mid) n++
+    while (n > 1 && R.pgs[n].offsetTop - 14 > mid) n--
+
+    if (n !== R.page) {
+      R.page = n
+      rdSync()
+    }
+  })
+}
+
+/* --- mode horizontal: geser, ketuk pinggir, roda mouse --- */
+function rdBindSwipe(area) {
+  const track = R.track
+  let d = null
+
+  area.addEventListener('pointerdown', e => {
+    if (e.button > 0) return
+    d = { x: e.clientX, t: performance.now(), dx: 0 }
+    area.setPointerCapture(e.pointerId)
+    track.classList.add('drag')
+  })
+
+  area.addEventListener('pointermove', e => {
+    if (!d) return
+
+    d.dx = e.clientX - d.x
+    const atEdge = (R.page === 1 && d.dx > 0) || (R.page === R.n && d.dx < 0)
+    const dx = atEdge ? d.dx * 0.25 : d.dx
+
+    track.style.transform = `translateX(calc(${-(R.page - 1) * 100}% + ${dx}px))`
+  })
+
+  area.addEventListener('pointerup', e => {
+    if (!d) return
+
+    const { dx, t } = d
+    d = null
+    track.classList.remove('drag')
+
+    if (Math.abs(dx) > 8) {
+      const far = Math.abs(dx) > area.clientWidth * 0.15
+      const fast = Math.abs(dx) / (performance.now() - t) > 0.5
+
+      if (far || fast) return rdGo(R.page + (dx < 0 ? 1 : -1))
+      return rdPlace(true)
+    }
+
+    // ketukan: pinggir kiri/kanan = pindah halaman, tengah = tampil/sembunyi bilah
+    const box = area.getBoundingClientRect()
+    const x = (e.clientX - box.left) / box.width
+
+    if (x < 0.25) rdGo(R.page - 1)
+    else if (x > 0.75) rdGo(R.page + 1)
+    else rdChrome(!R.chrome, true)
+  })
+
+  area.addEventListener('pointercancel', () => {
+    if (!d) return
+    d = null
+    track.classList.remove('drag')
+    rdPlace(true)
+  })
+
+  area.addEventListener('wheel', e => {
+    e.preventDefault()
+
+    const delta = e.deltaY || e.deltaX
+    if (Math.abs(delta) < 8 || Date.now() - (R.wheelAt || 0) < 400) return
+
+    R.wheelAt = Date.now()
+    rdGo(R.page + (delta > 0 ? 1 : -1))
+  }, { passive: false })
+}
+
+/* --- bilah atas/bawah --- */
+function rdChrome(show, sticky) {
+  clearTimeout(R.timer)
+  R.chrome = show
+  R.el.classList.toggle('hide-ui', !show)
+
+  // tampil otomatis menghilang setelah 3 detik; ketukan manual bertahan sampai diketuk lagi
+  if (show && !sticky && !R.hold) R.timer = setTimeout(() => R && rdChrome(false), 3200)
+}
+
+function rdDrawMode() {
+  const btn = R.el.querySelector('[data-rmode]')
+  const now = R.dir === 'h' ? 'Horizontal' : 'Vertikal'
+
+  btn.querySelector('.ico').innerHTML = MODE_IC[R.mode]
+  btn.querySelector('.lbl').textContent = MODE_LABEL[R.mode]
+
+  const text = `Mode baca: ${MODE_LABEL[R.mode]}${R.mode === 'auto' ? ` (sekarang ${now})` : ''}. Ketuk untuk ganti`
+  btn.setAttribute('aria-label', text)
+  btn.title = text
+}
+
+function rdCycleMode() {
+  R.mode = MODES[(MODES.indexOf(R.mode) + 1) % MODES.length]
+
+  try {
+    localStorage.setItem('eb-mode', R.mode)
+  } catch (e) { }
+
+  rdRelayout()
+  toast('Mode baca: ' + MODE_LABEL[R.mode] + (R.mode === 'auto' ? ' (mengikuti rotasi perangkat)' : ''))
+}
+
+/* --- penggeser halaman kustom --- */
+function rdBindScrub(box) {
+  const tip = box.querySelector('.rd-tip')
+  let on = false
+  let target = R.page
+
+  const move = e => {
+    if (!on) return
+
+    const r = box.getBoundingClientRect()
+    const f = clamp((e.clientX - r.left) / r.width, 0, 1)
+
+    target = Math.round(f * (R.n - 1)) + 1
+    R.el.style.setProperty('--p', f)
+    tip.hidden = false
+    tip.style.left = f * 100 + '%'
+    tip.textContent = target
+  }
+
+  const end = () => {
+    if (!on) return
+    on = false
+    R.hold = false
+    tip.hidden = true
+    rdGo(target, false)
+    rdChrome(true)
+  }
+
+  box.addEventListener('pointerdown', e => {
+    on = true
+    R.hold = true
+    box.setPointerCapture(e.pointerId)
+    move(e)
+  })
+  box.addEventListener('pointermove', move)
+  box.addEventListener('pointerup', end)
+  box.addEventListener('pointercancel', end)
+
+  box.addEventListener('keydown', e => {
+    const jump = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1, PageDown: 10, PageUp: -10 }[e.key]
+
+    if (jump) {
+      e.preventDefault()
+      rdGo(R.page + jump, false)
+    } else if (e.key === 'Home' || e.key === 'End') {
+      e.preventDefault()
+      rdGo(e.key === 'Home' ? 1 : R.n, false)
+    }
+  })
+}
+
+/* --- pasang semua pendengar (sekali per pembaca; dilepas lewat AbortController) --- */
+function rdBind() {
+  const signal = R.ac.signal
+  const el = R.el
+
+  rdBindScrub(el.querySelector('.rd-scrub'))
+
+  // bilah tidak menghilang selama kursor / jari ada di atasnya
+  el.querySelectorAll('.rd-bar').forEach(bar => {
+    bar.addEventListener('pointerenter', () => {
+      R.hold = true
+      clearTimeout(R.timer)
+    })
+    bar.addEventListener('pointerleave', () => {
+      R.hold = false
+      rdChrome(true)
+    })
+  })
+
+  // mouse bergerak = tampilkan bilah
+  el.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse' || R.hold || Date.now() - (R.ping || 0) < 500) return
+    R.ping = Date.now()
+    rdChrome(true)
+  }, { signal })
+
+  // rotasi perangkat / ubah ukuran jendela: arah baca ikut berubah (mode Otomatis)
+  let t
+  const onResize = () => {
+    clearTimeout(t)
+    t = setTimeout(rdMaybeRelayout, 200)
+  }
+  addEventListener('resize', onResize, { signal })
+  addEventListener('orientationchange', onResize, { signal })
+
+  // papan ketik
+  document.addEventListener('keydown', e => {
+    if (askDone || e.target.closest?.('.rd-scrub') || e.ctrlKey || e.metaKey || e.altKey) return
+
+    const k = e.key
+    const h = R.dir === 'h'
+
+    if (k === 'Escape') return rdClose()
+
+    if (k === 'ArrowRight' || (h && (k === 'PageDown' || (k === ' ' && !e.shiftKey)))) {
+      e.preventDefault()
+      rdGo(R.page + 1)
+    } else if (k === 'ArrowLeft' || (h && (k === 'PageUp' || (k === ' ' && e.shiftKey)))) {
+      e.preventDefault()
+      rdGo(R.page - 1)
+    } else if (k === 'Home' || k === 'End') {
+      e.preventDefault()
+      rdGo(k === 'Home' ? 1 : R.n)
+    } else {
+      return
+    }
+
+    rdChrome(true)
+  }, { signal })
+}
+
+/* --- penanda: simpan otomatis & manual --- */
+function rdSaveLocal() {
+  try {
+    localStorage.setItem(markKey(R.b.id), JSON.stringify({ p: R.page, t: Date.now() }))
+  } catch (e) { }
+}
+
+function rdQueueSave() {
+  rdSaveLocal()
+  R.dirty = true
+  clearTimeout(R.saveT)
+  R.saveT = setTimeout(rdFlush, EB.saveDelay)
+}
+
+// penanda otomatis dikirim ke server. Diabaikan jika user punya penanda manual (otomatis dibatalkan).
+function rdFlush() {
+  if (!R) return
+  clearTimeout(R.saveT)
+  if (!R.dirty || R.manual) return
+
+  R.dirty = false
+  return saveMark(R.b.id, { auto_page: R.page, manual_page: null })
+}
+
+async function rdToggleMark() {
+  const page = R.page
+  const was = R.manual
+  const removing = was === page
+  const book = R.b.id
+
+  // tampilan diubah dulu (tanpa menunggu server), dikembalikan jika gagal
+  R.manual = removing ? null : page
+  R.dirty = false
+  clearTimeout(R.saveT)
+  rdPaintMark()
+  rdSync()
+
+  const { error } = await saveMark(book, removing
+    ? { manual_page: null, auto_page: page }
+    : { manual_page: page, auto_page: null })
+
+  if (error) {
+    toast('Penanda gagal disimpan: ' + error.message, true)
+    if (R) {
+      R.manual = was
+      rdPaintMark()
+      rdSync()
+    }
+    return
+  }
+
+  toast(removing
+    ? 'Penanda dihapus. Halaman terakhir dibaca tersimpan otomatis lagi.'
+    : `Halaman ${page} ditandai. Penanda otomatis dinonaktifkan.`)
+}
+
+/* --- tutup --- */
+function rdClose() {
+  if (!R) return
+  if (history.state?.rd) return history.back()   // popstate akan memanggil rdTeardown
+  rdTeardown()
+}
+
+function rdTeardown() {
+  if (!R) return
+
+  const r = R
+  rdSaveLocal()
+  rdFlush()                  // dikirim sebelum pembaca dibongkar
+
+  R = null
+  r.ac.abort()
+  clearTimeout(r.timer)
+  clearTimeout(r.saveT)
+  cancelAnimationFrame(r.raf)
+  r.pdf.destroy()
+  r.el.remove()
+
+  document.body.classList.remove('rd-open')
+  r.prevFocus?.focus?.({ preventScroll: true })
+}
+
+addEventListener('popstate', () => rdTeardown())
+
+// halaman ditutup / pindah tab: halaman terakhir dibaca langsung disimpan
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && R) {
+    rdSaveLocal()
+    rdFlush()
+  }
+})
+addEventListener('pagehide', () => {
+  if (R) {
+    rdSaveLocal()
+    rdFlush()
+  }
+})
+
+
+/* ---------- E7. EVENT E-BOOK ---------- */
+document.addEventListener('change', e => {
+  // form buku: jenis buku menentukan kolom mana yang tampil
+  if (e.target.name === 'kind' && e.target.form?.id === 'bf') {
+    e.target.form.dataset.kind = e.target.value
+    drawPreview()
+  }
+})
+
+document.addEventListener('click', e => {
+  const find = key => e.target.closest(`[data-${key}]`)
+  let el
+
+  // ganti katalog
+  if (el = find('ekind')) {
+    S.kind = el.dataset.ekind
+    S.page = 1
+    return render()
+  }
+
+  if (el = find('eread')) return openReader(el.dataset.eread)
+  if (el = find('edl')) return downloadEbook(el.dataset.edl)
+
+  if (!R) return
+
+  if (find('rclose')) return rdClose()
+  if (find('rmark')) return rdToggleMark()
+  if (find('rmode')) return rdCycleMode()
+  if (find('rdlr')) return downloadEbook(R.b.id)
+  if (find('rjump')) return R.manual && rdGo(R.manual)
+
+  if (el = find('rstep')) {
+    rdGo(R.page + +el.dataset.rstep)
+    return rdChrome(true)
+  }
 })
 
 
