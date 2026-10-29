@@ -86,7 +86,7 @@ const LIMITED_HTML = ' - <span class="ltd">LIMITED TIME!</span>'
 const GITHUB_REPO = 'OWNER/REPO'    // <-- GANTI, contoh: 'username/pustakakita' (repo harus public)
 const VERSION_MAJOR = 1
 const VERSION_FALLBACK = 'v1.0'     // dipakai jika GitHub tidak bisa dihubungi / repo belum diisi
-const RELEASE_ID = '2026-10-24b'    // ganti setiap rilis baru supaya tanda NEW! muncul lagi
+const RELEASE_ID = '2026-10-24c'    // ganti setiap rilis baru supaya tanda NEW! muncul lagi
 
 // data tab Developer (ubah sesukamu)
 const DEVELOPER = {
@@ -100,6 +100,13 @@ const DEVELOPER = {
 // Urutan: yang terbaru di atas. Tiap rilis baru = tambah satu entri baru di paling atas,
 // entri lama jangan dihapus/diubah supaya riwayatnya tetap ada. Jangan lupa ganti RELEASE_ID.
 const CHANGELOG = [
+  {
+    title: 'Perbaikan daftar Pesan di HP',
+    date: '24 Okt 2026',
+    items: [
+      'Perbaikan: daftar chat di halaman Pesan (tampilan HP) yang melebar keluar layar, sehingga jam/tanggal terpotong.'
+    ]
+  },
   {
     title: 'Menu slide di HP',
     date: '24 Okt 2026',

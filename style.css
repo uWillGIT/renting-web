@@ -1221,7 +1221,7 @@ td .btn {
 
 .pesan {
     display: grid;
-    grid-template-columns: 240px 1fr;
+    grid-template-columns: 240px minmax(0, 1fr);
     gap: 1rem;
 }
 
@@ -1229,6 +1229,7 @@ td .btn {
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
+    min-width: 0;
 }
 
 /* item daftar percakapan: avatar, judul, pratinjau, jam, angka belum dibaca */
@@ -1246,6 +1247,7 @@ td .btn {
     text-align: left;
     cursor: pointer;
     transition: 0.2s;
+    min-width: 0;
 }
 
 #plist .pitem.on {
@@ -1292,6 +1294,7 @@ td .btn {
 .ppanel {
     display: flex;
     flex-direction: column;
+    min-width: 0;
     height: 68vh;
     overflow: hidden;
     border: 1px solid var(--line);
@@ -1349,7 +1352,7 @@ td .btn {
    Kolom ketik & tombol Kirim dinaikkan supaya tidak tertutup watermark Netlify. */
 @media (max-width: 700px) {
     .pesan {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .pesan .ppanel {
