@@ -1,7 +1,8 @@
 /* ==========================================================
-   PustakaKita - style.css
+   PustakaKita - style.css  (versi lengkap, sudah digabung)
    1. Tema   2. Dasar   3. Header   4. Tombol & form
    5. Katalog   6. Modal   7. Pinjaman & admin   8. Chat   9. Lain-lain
+   8x = animasi tab Pesan   8y = perbaikan ukuran tab Pesan
    ========================================================== */
 
 
@@ -75,8 +76,10 @@
     display: none !important;
 }
 
+/* kunci ukuran teks: cegah browser HP memperbesar teks sendiri */
 html {
     -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
     text-size-adjust: 100%;
 }
 
@@ -183,6 +186,25 @@ nav button.on {
     font-size: 0.9rem;
 }
 
+/* tulisan PustakaKita di header = tombol ke Katalog */
+.brand {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s;
+}
+
+.brand:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+}
+
+.brand:active {
+    transform: scale(0.96);
+}
 
 /* ---------- 4. TOMBOL & FORM ---------- */
 .btn {
@@ -1223,6 +1245,7 @@ td .btn {
     display: grid;
     grid-template-columns: 240px minmax(0, 1fr);
     gap: 1rem;
+    max-height: 1000000px;
 }
 
 #plist {
@@ -1292,6 +1315,7 @@ td .btn {
 }
 
 .ppanel {
+    position: relative;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -1331,6 +1355,15 @@ td .btn {
     display: block;
 }
 
+/* pembungkus daftar pesan (tempat tombol "ke pesan terbaru" menempel) */
+.pwrap {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
 #pmsgs {
     display: flex;
     flex: 1;
@@ -1346,6 +1379,58 @@ td .btn {
     gap: 0.5rem;
     padding: 0.7rem;
     border-top: 1px solid var(--line);
+}
+
+/* tombol "ke pesan terbaru" (tampil saat pembaca menggulir ke atas) */
+.pdown {
+    position: absolute;
+    right: 0.9rem;
+    bottom: 0.8rem;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 2.6rem;
+    height: 2.6rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--pri);
+    color: var(--onpri);
+    font: inherit;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(14px) scale(0.6);
+    transition: opacity 0.25s, transform 0.4s cubic-bezier(0.3, 1.5, 0.5, 1), visibility 0.25s, background 0.2s;
+}
+
+.pdown.show {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+}
+
+.pdown:hover {
+    background: var(--pri2);
+}
+
+.pdown.show:active {
+    transform: scale(0.88);
+}
+
+.pdown .ic {
+    width: 1.3rem;
+    height: 1.3rem;
+    margin: 0;
+}
+
+.pdown .nb {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    margin: 0;
+    box-shadow: 0 0 0 2px var(--card);
 }
 
 /* HP: daftar pesan penuh; klik satu chat -> chat layar penuh.
@@ -1859,7 +1944,7 @@ td .btn {
 }
 
 /* HP & tablet kecil: nav jadi panel yang slide dari kiri */
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
     .top {
         gap: 0.6rem;
         padding: 0.6rem 1rem;
@@ -1913,6 +1998,7 @@ td .btn {
 
     /* Informasi (!) dan tema pindah ke dalam panel; akun di header tinggal avatar */
     .top>#infobtn,
+    .top>#setbtn,
     .top>#theme {
         display: none;
     }
@@ -2085,523 +2171,2531 @@ td .btn {
     }
 }
 
-/* ==========================================================
-   PustakaKita - ebook.css   (dimuat SETELAH style.css)
-   1. Katalog   2. Form admin   3. Pembaca   4. Layar kecil
-   ========================================================== */
 
+/* ---------- 8m. CHECKBOX KUSTOM & PEMILIH BERKAS ---------- */
+input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    display: inline-grid;
+    flex: none;
+    place-content: center;
+    width: 1.4rem;
+    height: 1.4rem;
+    margin: 0;
+    padding: 0;
+    border: 2px solid var(--mut);
+    border-radius: 7px;
+    background: var(--card);
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+}
 
-/* ---------- 1. KATALOG ---------- */
-/* pemilih Buku fisik / E-Book */
-.kinds {
+input[type="checkbox"]::after {
+    content: '';
+    width: 0.7rem;
+    height: 0.38rem;
+    margin-top: -0.12rem;
+    border-bottom: 3px solid var(--onpri);
+    border-left: 3px solid var(--onpri);
+    border-radius: 1px;
+    opacity: 0;
+    transform: rotate(-45deg) scale(0);
+    transition: transform 0.25s cubic-bezier(0.3, 1.7, 0.5, 1), opacity 0.15s;
+}
+
+input[type="checkbox"]:hover {
+    border-color: var(--pri2);
+}
+
+input[type="checkbox"]:checked {
+    border-color: var(--pri);
+    background: var(--pri);
+    animation: centang 0.3s;
+}
+
+input[type="checkbox"]:checked::after {
+    opacity: 1;
+    transform: rotate(-45deg) scale(1);
+}
+
+input[type="checkbox"]:active {
+    transform: scale(0.86);
+}
+
+input[type="checkbox"]:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+@keyframes centang {
+    50% {
+        transform: scale(1.2);
+    }
+}
+
+.setting {
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.2s;
+}
+
+.setting:hover {
+    border-color: var(--pri2);
+}
+
+.setting input[type="checkbox"] {
+    margin-top: 0.1rem;
+}
+
+.sec .setting:last-child {
+    margin-bottom: 0;
+}
+
+.filebtn {
     display: flex;
-    gap: 0.3rem;
-    width: fit-content;
-    max-width: 100%;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.8rem;
+    border: 1.5px dashed var(--mut);
+    border-radius: 10px;
+    background: var(--soft);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.filebtn:hover {
+    border-color: var(--pri2);
+    background: var(--card);
+}
+
+.filebtn span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ebblock {
+    display: grid;
+    gap: 0.7rem;
+}
+
+/* form buku: bagian khusus jenis */
+#bf[data-bkind="ebook"] .k-fisik,
+#bf[data-bkind="fisik"] .k-ebook {
+    display: none;
+}
+
+
+/* ---------- 8n. KATALOG PER JENIS (Buku Fisik / E-Book) ---------- */
+.kinds {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     margin-bottom: 1rem;
     padding: 0.3rem;
-    border: 1px solid var(--line);
     border-radius: 14px;
-    background: var(--card);
+    background: var(--soft);
+    isolation: isolate;
+}
+
+.kinds .kslide {
+    position: absolute;
+    top: 0.3rem;
+    bottom: 0.3rem;
+    left: 0.3rem;
+    z-index: -1;
+    width: calc(50% - 0.3rem);
+    border-radius: 11px;
+    background: var(--pri);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
+    transition: transform 0.4s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+
+.kinds[data-on="ebook"] .kslide {
+    transform: translateX(100%);
 }
 
 .kinds button {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    padding: 0.55rem 1.1rem;
+    gap: 0.45rem;
+    padding: 0.7rem 0.5rem;
     border: 0;
-    border-radius: 10px;
+    border-radius: 11px;
     background: none;
-    color: var(--mut);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-}
-
-.kinds button:hover {
     color: var(--ink);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    transition: color 0.25s;
 }
 
 .kinds button.on {
-    background: var(--pri);
     color: var(--onpri);
 }
 
-.kinds small {
-    min-width: 1.4rem;
-    padding: 0 0.4rem;
+.kinds button i {
+    padding: 0.05rem 0.5rem;
     border-radius: 99px;
-    background: var(--soft);
-    color: var(--mut);
+    background: rgba(127, 127, 160, 0.28);
     font-size: 0.72rem;
-    font-weight: 700;
-    line-height: 1.4rem;
-    text-align: center;
+    font-style: normal;
 }
 
-.kinds button.on small {
-    background: rgba(255, 255, 255, 0.22);
-    color: var(--onpri);
-}
-
-/* label E-Book di pojok sampul */
-.kbadge {
+.cover .kbadge {
     position: absolute;
-    top: 0.5rem;
-    left: 0.5rem;
+    top: 0.4rem;
+    left: 0.4rem;
     z-index: 1;
-    padding: 0.12rem 0.6rem;
+    padding: 0.1rem 0.55rem;
     border-radius: 99px;
     background: var(--pri);
     color: var(--onpri);
-    font-size: 0.72rem;
-    font-weight: 700;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
 }
 
-
-/* ---------- 2. FORM ADMIN ---------- */
-#bf[data-kind="ebook"] .only-fisik {
-    display: none;
-}
-
-#bf:not([data-kind="ebook"]) .only-ebook {
-    display: none;
-}
-
-.ebfields {
-    display: grid;
-    gap: 0.6rem;
-    padding: 0.8rem;
-    border: 1px dashed var(--line);
-    border-radius: 10px;
-}
-
-.ebfields label {
-    display: grid;
-    gap: 0.25rem;
-}
-
-.ebfields .check {
-    display: flex;
-}
-
-
-/* ---------- 3. PEMBACA ---------- */
-/* Pembaca selalu gelap (ruang baca). Z-index: di atas modal (20) & chat (25), di bawah toast (30) & dialog (35). */
-.rd {
-    --rd-ink: #0d0c22;
-    --rd-bar: rgba(22, 19, 54, 0.88);
-    --rd-fg: #f1efff;
-    --rd-mut: #a9a5d6;
-    --rd-acc: #9f8cff;
-    --rd-lift: 0px;
-    /* ruang di bawah bilah (naik di HP supaya tidak tertutup watermark Netlify; set 0 jika sudah tidak ada) */
-
-    position: fixed;
-    inset: 0;
-    z-index: 28;
-    overflow: hidden;
-    background: var(--rd-ink);
-    color: var(--rd-fg);
-    animation: rd-buka 0.3s both;
-}
-
-@keyframes rd-buka {
-    from {
-        opacity: 0;
-        transform: translateY(16px);
-    }
-}
-
-body.rd-open {
-    overflow: hidden;
-}
-
-.rd-stage {
+.cover .kmark {
     position: absolute;
-    inset: 0;
+    right: 0.4rem;
+    bottom: 0.4rem;
+    z-index: 1;
+    padding: 0.1rem 0.5rem;
+    border-radius: 99px;
+    background: rgba(0, 0, 0, 0.68);
+    color: #ffffff;
+    font-size: 0.68rem;
+    font-weight: 700;
 }
 
-/* ikon garis */
-.rd svg {
-    width: 1.3rem;
-    height: 1.3rem;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+
+/* ---------- 8o. PEMBACA E-BOOK (gaya manga) ---------- */
+body.reading {
+    overflow: hidden;
 }
 
-/* bilah atas & bawah */
-.rd-bar {
+.reader {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 26;
+    background: #000000;
+    color: #f4f4f8;
+    opacity: 0;
+    visibility: hidden;
+    overscroll-behavior: contain;
+    transform: scale(0.985);
+    transition: opacity 0.3s, transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1), visibility 0.3s;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.reader.open {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+}
+
+/* bar atas & bawah: pudar menyatu dengan halaman, bukan blok solid */
+.rd-top,
+.rd-bot {
     position: absolute;
     left: 0;
     right: 0;
     z-index: 3;
     display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    background: var(--rd-bar);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
-    transition: transform 0.28s cubic-bezier(0.3, 0.9, 0.3, 1), opacity 0.28s;
+    pointer-events: none;
+    transition: transform 0.35s cubic-bezier(0.3, 0.9, 0.3, 1), opacity 0.25s;
+}
+
+.rd-top>*,
+.rd-bot .rd-btn,
+.rd-bot .rd-rw,
+.rd-bot .rd-z {
+    pointer-events: auto;
 }
 
 .rd-top {
     top: 0;
-    padding: calc(0.5rem + env(safe-area-inset-top, 0px)) calc(0.7rem + env(safe-area-inset-right, 0px)) 0.5rem calc(0.7rem + env(safe-area-inset-left, 0px));
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    align-items: center;
+    gap: 0.15rem;
+    padding: calc(0.4rem + env(safe-area-inset-top, 0px)) 0.5rem 1.4rem;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.6) 55%, rgba(0, 0, 0, 0));
 }
 
 .rd-bot {
     bottom: 0;
-    padding: 0.5rem calc(0.8rem + env(safe-area-inset-right, 0px)) calc(0.5rem + var(--rd-lift) + env(safe-area-inset-bottom, 0px)) calc(0.8rem + env(safe-area-inset-left, 0px));
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 1.8rem 0.6rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.94), rgba(0, 0, 0, 0.62) 60%, rgba(0, 0, 0, 0));
 }
 
-.rd.hide-ui .rd-top {
+.reader.ui-hide .rd-top {
     opacity: 0;
-    transform: translateY(-100%);
+    transform: translateY(-40%);
+}
+
+.reader.ui-hide .rd-bot {
+    opacity: 0;
+    transform: translateY(40%);
+}
+
+.reader.ui-hide .rd-top>*,
+.reader.ui-hide .rd-bot .rd-btn,
+.reader.ui-hide .rd-bot .rd-rw {
     pointer-events: none;
 }
 
-.rd.hide-ui .rd-bot {
-    opacity: 0;
-    transform: translateY(100%);
-    pointer-events: none;
-}
-
+/* tombol ikon polos (tanpa lingkaran) */
 .rd-btn {
+    position: relative;
     display: grid;
     flex: none;
     place-items: center;
-    min-width: 2.5rem;
-    height: 2.5rem;
+    width: 2.6rem;
+    height: 2.6rem;
+    overflow: hidden;
     border: 0;
     border-radius: 12px;
-    background: none;
-    color: var(--rd-fg);
+    background: transparent;
+    color: #ffffff;
     font: inherit;
     cursor: pointer;
-    transition: background 0.2s, transform 0.15s;
+    transition: background 0.2s, color 0.2s, transform 0.15s;
 }
 
-.rd-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.12);
+.rd-btn .ic {
+    width: 1.35rem;
+    height: 1.35rem;
+    margin: 0;
 }
 
-.rd-btn:active:not(:disabled) {
-    transform: scale(0.92);
+.rd-btn:hover {
+    background: rgba(255, 255, 255, 0.14);
 }
 
-.rd-btn:disabled {
-    opacity: 0.3;
-    cursor: default;
+.rd-btn:active {
+    transform: scale(0.88);
 }
 
-.rd .rd-btn:focus-visible,
-.rd .rd-sub:focus-visible,
-.rd .rd-scrub:focus-visible {
-    outline: 2px solid #ffffff;
-    outline-offset: 2px;
+/* penanda manual di halaman ini */
+.rd-btn.on {
+    color: #ffd34d;
 }
 
-.rd-btn.wide {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0 0.75rem;
-    font-size: 0.82rem;
-    font-weight: 600;
+.rd-btn.on .ic {
+    fill: currentColor;
+}
+
+/* ada penanda manual di halaman lain */
+.rd-btn.other::after {
+    content: '';
+    position: absolute;
+    top: 0.55rem;
+    right: 0.6rem;
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: #ffd34d;
+}
+
+.rd-btn.pop {
+    animation: pop 0.45s cubic-bezier(0.3, 1.8, 0.5, 1);
+}
+
+@keyframes pop {
+    40% {
+        transform: scale(1.35) rotate(-10deg);
+    }
 }
 
 .rd-title {
-    display: grid;
     flex: 1;
     min-width: 0;
     padding: 0 0.3rem;
+    line-height: 1.25;
 }
 
 .rd-title b {
+    display: block;
     overflow: hidden;
-    font-size: 0.98rem;
+    font-size: 0.95rem;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.rd-sub {
-    justify-self: start;
-    max-width: 100%;
-    padding: 0;
+.rd-title small {
+    display: block;
     overflow: hidden;
-    border: 0;
-    background: none;
-    color: var(--rd-mut);
-    font: inherit;
+    color: #9da3b8;
     font-size: 0.74rem;
-    text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.rd-sub:not(:disabled) {
-    color: var(--stamp);
-    text-decoration: underline dotted;
-    cursor: pointer;
-}
-
-/* tombol penanda: 3 keadaan */
-.mk.is-auto svg {
-    stroke-dasharray: 3.2 3.2;
-    opacity: 0.8;
-}
-
-.mk.is-else {
-    color: var(--stamp);
-}
-
-.mk.is-manual {
-    color: var(--stamp);
-}
-
-.mk.is-manual svg {
-    fill: var(--stamp);
-}
-
-/* penggeser halaman kustom */
-.rd-scrub {
-    position: relative;
-    display: grid;
-    flex: 1;
-    align-items: center;
-    height: 2.5rem;
-    margin: 0 0.3rem;
-    cursor: pointer;
-    touch-action: none;
-}
-
-.rd-trk {
-    position: relative;
-    height: 6px;
-    border-radius: 99px;
-    background: rgba(255, 255, 255, 0.18);
-}
-
-.rd-fill {
+.rd-stage {
     position: absolute;
     top: 0;
+    right: 0;
     bottom: 0;
     left: 0;
-    width: calc(var(--p, 0) * 100%);
-    border-radius: 99px;
-    background: var(--rd-acc);
+    overflow: hidden;
 }
 
-.rd-thumb {
+.rd-load,
+.rd-err {
     position: absolute;
-    top: 50%;
-    left: calc(var(--p, 0) * 100%);
-    width: 18px;
-    height: 18px;
-    margin: -9px 0 0 -9px;
-    border-radius: 50%;
-    background: #ffffff;
-    box-shadow: 0 0 0 4px rgba(159, 140, 255, 0.35);
-    transition: transform 0.15s;
-}
-
-.rd-scrub:active .rd-thumb {
-    transform: scale(1.25);
-}
-
-/* penanda manual di penggeser */
-.rd-mk {
-    position: absolute;
-    top: -9px;
-    width: 10px;
-    height: 20px;
-    margin-left: -5px;
-    background: var(--stamp);
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
-}
-
-.rd-tip {
-    position: absolute;
-    bottom: 2.2rem;
-    padding: 0.15rem 0.65rem;
-    border-radius: 8px;
-    background: #ffffff;
-    color: #1b1740;
-    font-size: 0.82rem;
-    font-weight: 800;
-    transform: translateX(-50%);
-    pointer-events: none;
-}
-
-.rd-count {
-    min-width: 5rem;
-    color: var(--rd-fg);
-    font-size: 0.85rem;
-    font-variant-numeric: tabular-nums;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    gap: 0.8rem;
+    place-content: center;
+    justify-items: center;
+    padding: 1rem;
     text-align: center;
 }
 
-/* halaman */
-.rd-pg {
-    position: relative;
-    flex: none;
-    border-radius: 2px;
-    background: #f4f3fb;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+.rd-load p,
+.rd-err p {
+    max-width: 22rem;
+    color: #c4c9dc;
+    font-size: 0.9rem;
 }
 
-.rd-pg canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-    border-radius: 2px;
+.rd-load .spinner {
+    border-color: rgba(255, 255, 255, 0.16);
+    border-top-color: var(--pri2);
 }
 
-/* halaman yang belum selesai digambar: nomor halaman samar */
-.rd-pg::before {
-    content: attr(data-n);
+.rd-err .rowbtns {
+    justify-content: center;
+}
+
+.rd-err .cicon {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffd34d;
+}
+
+.rd-miss {
     position: absolute;
-    inset: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     display: grid;
     place-items: center;
-    color: #d6d2ee;
-    font-size: clamp(2rem, 9vw, 4.5rem);
-    font-weight: 800;
+    color: #7c8198;
+    font-size: 0.85rem;
 }
 
-.rd-pg.ready::before {
-    display: none;
-}
-
-/* pita penanda manual (cap kuning, senada kode peminjaman) */
-.rib {
+/* mode vertikal: strip tanpa jeda, selebar layar */
+.rd-scroll {
     position: absolute;
-    top: -3px;
-    right: 1rem;
-    display: none;
-    width: 1.5rem;
-    height: 2.6rem;
-    background: var(--stamp);
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 76%, 0 100%);
-}
-
-.rd-pg.marked .rib {
-    display: block;
-    animation: rd-jatuh 0.45s cubic-bezier(0.3, 1.4, 0.5, 1);
-}
-
-@keyframes rd-jatuh {
-    from {
-        transform: translateY(-110%);
-    }
-}
-
-/* mode horizontal: satu halaman per layar, digeser */
-.rd-h {
-    height: 100%;
-    overflow: hidden;
-    touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
-}
-
-.rd-track {
-    display: flex;
-    height: 100%;
-    transition: transform 0.38s cubic-bezier(0.3, 0.9, 0.3, 1);
-    will-change: transform;
-}
-
-.rd-track.drag {
-    transition: none;
-}
-
-.rd-slide {
-    display: grid;
-    flex: 0 0 100%;
-    place-items: center;
-    height: 100%;
-}
-
-/* mode vertikal: gulir terus-menerus */
-.rd-v {
-    position: relative;
-    height: 100%;
-    padding: calc(4.2rem + env(safe-area-inset-top, 0px)) 0.5rem 5rem;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    padding-bottom: 4rem;
+    overflow: auto;
     -webkit-overflow-scrolling: touch;
 }
 
-.rd-v .rd-pg {
-    margin: 0 auto 14px;
+.rd-pg {
+    position: relative;
+    width: var(--pw);
+    height: var(--ph);
+    margin: 0 auto;
+    overflow: hidden;
+    background: #0e0e12;
 }
 
+.rd-pg canvas,
+.rd-pg img {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 0.35s;
+}
 
-/* ---------- 4. LAYAR KECIL ---------- */
-@media (max-width: 900px) {
-    .rd {
-        --rd-lift: 3.2rem;
+/* mode horizontal: satu halaman per layar, tanpa bingkai */
+.rd-track {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    transform: translateX(-100%);
+    touch-action: pan-y;
+    will-change: transform;
+}
+
+/* kanan-ke-kiri (manga): susunan slide dibalik */
+.rd-track[data-dir="rtl"] {
+    flex-direction: row-reverse;
+}
+
+.rd-sl {
+    display: flex;
+    flex: 0 0 100%;
+    height: 100%;
+    overflow: hidden;
+    --z: 1;
+}
+
+/* "isi lebar": halaman memenuhi lebar layar, gulir ke bawah untuk sisanya */
+.rd-sl.fitw {
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
+    touch-action: pan-y;
+}
+
+.rd-sl.fitw::-webkit-scrollbar {
+    display: none;
+}
+
+/* diperbesar: gulir ke segala arah */
+.rd-sl.zoomed {
+    overflow: auto;
+    scrollbar-width: none;
+    touch-action: auto;
+}
+
+.rd-sl.zoomed::-webkit-scrollbar {
+    display: none;
+}
+
+.rd-sl canvas {
+    flex: none;
+    max-width: none;
+    margin: auto;
+    background: #ffffff;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.rd-sl.fitw canvas {
+    margin: 0 auto auto;
+}
+
+.rd-sl img {
+    flex: none;
+    width: calc(100% * var(--z));
+    height: calc(100% * var(--z));
+    margin: auto;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.rd-sl.fitw img {
+    height: auto;
+    margin: 0 auto auto;
+}
+
+.rd-pg .in,
+.rd-sl .in {
+    opacity: 1;
+}
+
+/* garis kemajuan tipis, selalu terlihat (juga saat bar disembunyikan) */
+.rd-prog {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 4;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+}
+
+.rd-prog i {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: var(--pri2);
+    transition: width 0.3s;
+}
+
+.reader.rd-rtl .rd-prog i {
+    margin-left: auto;
+}
+
+/* nomor halaman singkat saat bar tersembunyi */
+.rd-pill {
+    position: absolute;
+    left: 0.8rem;
+    bottom: 0.9rem;
+    z-index: 4;
+    padding: 0.15rem 0.7rem;
+    border-radius: 99px;
+    background: rgba(0, 0, 0, 0.72);
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.rd-pill.show {
+    opacity: 1;
+}
+
+.reader:not(.ui-hide) .rd-pill {
+    opacity: 0;
+}
+
+/* bar bawah */
+.rd-line {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.rd-count {
+    min-width: 5.4em;
+    color: #d3d7e6;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.rd-rw {
+    position: relative;
+    display: flex;
+    flex: 1;
+    align-items: center;
+    height: 1.6rem;
+}
+
+.rd-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 1.6rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    --p: 0%;
+}
+
+.rd-range::-webkit-slider-runnable-track {
+    height: 3px;
+    border-radius: 3px;
+    background: linear-gradient(to right, var(--pri2) var(--p), rgba(255, 255, 255, 0.25) var(--p));
+}
+
+.rd-range::-moz-range-track {
+    height: 3px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.rd-range::-moz-range-progress {
+    height: 3px;
+    border-radius: 3px;
+    background: var(--pri2);
+}
+
+.rd-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 0.95rem;
+    height: 0.95rem;
+    margin-top: -0.4rem;
+    border: 0;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.rd-range:active::-webkit-slider-thumb {
+    transform: scale(1.3);
+    box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.2);
+}
+
+.rd-range::-moz-range-thumb {
+    width: 0.95rem;
+    height: 0.95rem;
+    border: 0;
+    border-radius: 50%;
+    background: #ffffff;
+}
+
+/* kanan-ke-kiri: slider ikut dibalik */
+.reader.rd-rtl .rd-range {
+    direction: rtl;
+}
+
+.reader.rd-rtl .rd-range::-webkit-slider-runnable-track {
+    background: linear-gradient(to left, var(--pri2) var(--p), rgba(255, 255, 255, 0.25) var(--p));
+}
+
+/* tanda penanda di slider */
+.rd-tick {
+    --r: 0;
+    position: absolute;
+    top: -0.25rem;
+    left: calc(0.475rem + (100% - 0.95rem) * var(--r));
+    width: 0.6rem;
+    height: 0.95rem;
+    background: #ffd34d;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+    pointer-events: none;
+    transform: translateX(-50%);
+}
+
+.rd-tick.auto {
+    background: #aab4ff;
+}
+
+.reader.rd-rtl .rd-tick {
+    left: auto;
+    right: calc(0.475rem + (100% - 0.95rem) * var(--r));
+    transform: translateX(50%);
+}
+
+.rd-ctl {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.1rem;
+}
+
+.rd-z {
+    min-width: 3rem;
+    color: #d3d7e6;
+    font-size: 0.78rem;
+    text-align: center;
+}
+
+/* tombol arah/ukuran hanya relevan di mode horizontal */
+.reader[data-mode="v"] .h-only {
+    display: none;
+}
+
+.rd-banner {
+    position: absolute;
+    top: calc(4.2rem + env(safe-area-inset-top, 0px));
+    left: 50%;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    max-width: calc(100% - 1.5rem);
+    padding: 0.5rem 0.6rem 0.5rem 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 99px;
+    background: rgba(22, 22, 30, 0.94);
+    color: #ffffff;
+    font-size: 0.85rem;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -20px);
+    transition: opacity 0.3s, transform 0.4s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+.rd-banner.show {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(-50%, 0);
+}
+
+.rd-banner button {
+    flex: none;
+    padding: 0.25rem 0.8rem;
+    border: 0;
+    border-radius: 99px;
+    background: var(--pri);
+    color: #ffffff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* menghindari watermark Netlify di kanan bawah */
+@media (min-width: 701px) {
+    .rd-bot {
+        padding-right: 10.5rem;
     }
 }
 
-@media (max-width: 560px) {
-    .kinds {
-        width: 100%;
+@media (max-width: 700px) and (orientation: portrait) {
+    .rd-bot {
+        padding-bottom: calc(3.2rem + env(safe-area-inset-bottom, 0px));
     }
 
-    .kinds button {
+    .rd-btn {
+        width: 2.4rem;
+    }
+}
+
+/* HP landscape: bar bawah satu baris supaya tidak menutupi halaman */
+@media (max-height: 480px) and (orientation: landscape) {
+    .rd-bot {
+        flex-direction: row;
+        align-items: center;
+        padding: 1.4rem 10.5rem calc(0.3rem + env(safe-area-inset-bottom, 0px)) 0.7rem;
+    }
+
+    .rd-line {
         flex: 1;
-        padding: 0.55rem 0.6rem;
+        order: 2;
     }
 
-    .rd-btn.wide .lbl {
+    .rd-ctl {
+        order: 1;
+    }
+
+    .rd-btn {
+        width: 2.3rem;
+        height: 2.3rem;
+    }
+}
+
+
+/* ---------- 8p. HALAMAN SETELAN ---------- */
+.setwrap {
+    display: grid;
+    gap: 1rem;
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.sec {
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--card);
+}
+
+.sec h3 {
+    margin-bottom: 0.7rem;
+}
+
+.sec form {
+    display: grid;
+    gap: 0.6rem;
+}
+
+.sec label.hint {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.bio {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.9rem;
+}
+
+.bio .ava {
+    width: 3.6rem;
+    height: 3.6rem;
+    font-size: 1.5rem;
+}
+
+.bio b {
+    font-size: 1.1rem;
+}
+
+.rowbtns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 0.7rem;
+}
+
+.sec .tabs {
+    margin-top: 0;
+}
+
+.sec .accmenu {
+    margin-bottom: 0.4rem;
+}
+
+
+/* ---------- 8q. HALAMAN NOTIFIKASI ---------- */
+.notifwrap {
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.nhead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-bottom: 0.3rem;
+}
+
+.nfilter {
+    margin-top: 0.6rem;
+}
+
+.nfilter .nb {
+    margin-left: 0.4rem;
+}
+
+.ngrp {
+    margin: 1.1rem 0 0.4rem;
+    color: var(--mut);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+.nitem {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+    margin-bottom: 0.5rem;
+    padding: 0.8rem 1rem;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--card);
+    cursor: pointer;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    transition: background 0.3s, border-color 0.3s, transform 0.25s, opacity 0.3s;
+}
+
+.nitem:hover {
+    transform: translateX(3px);
+}
+
+.nitem.unread {
+    border-color: var(--pri2);
+    background: var(--soft);
+}
+
+.nitem.removing {
+    opacity: 0;
+    transform: translateX(44px) scale(0.96);
+}
+
+.nico {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 12px;
+    background: var(--soft);
+    font-size: 1.2rem;
+    transition: background 0.3s;
+}
+
+.nitem.unread .nico {
+    background: var(--card);
+}
+
+.nbody {
+    flex: 1;
+    min-width: 0;
+}
+
+.nbody b {
+    display: block;
+}
+
+.nbody p {
+    color: var(--mut);
+    font-size: 0.88rem;
+    overflow-wrap: anywhere;
+}
+
+.nbody small {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--mut);
+    font-size: 0.72rem;
+}
+
+.nopen {
+    flex: none;
+    align-self: center;
+}
+
+.ndot {
+    flex: none;
+    width: 0.65rem;
+    height: 0.65rem;
+    margin-top: 0.4rem;
+    border-radius: 50%;
+    background: #ef4444;
+    transform: scale(0);
+    transition: transform 0.3s cubic-bezier(0.3, 1.7, 0.5, 1);
+}
+
+.nitem.unread .ndot {
+    transform: scale(1);
+}
+
+/* indikator "tahan untuk menghapus" */
+.nitem.holding::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--bad);
+    transform-origin: left;
+    animation: tahan 0.55s linear forwards;
+}
+
+@keyframes tahan {
+    from {
+        transform: scaleX(0);
+    }
+
+    to {
+        transform: scaleX(1);
+    }
+}
+
+
+/* ---------- 8r. LEBIH BANYAK ANIMASI (dimatikan oleh Potato Mode) ---------- */
+/* kartu katalog muncul bergantian */
+.grid.stag .card {
+    animation: kartu 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+    animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+@keyframes kartu {
+    from {
+        opacity: 0;
+        transform: translateY(22px) scale(0.94);
+    }
+}
+
+.card .cover img {
+    transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.card:hover .cover img {
+    transform: scale(1.07);
+}
+
+/* bagian setelan & notifikasi */
+.sec {
+    animation: masuk 0.45s backwards;
+    animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+.stag .nitem {
+    animation: geserKanan 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+    animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+@keyframes geserKanan {
+    from {
+        opacity: 0;
+        transform: translateX(-24px);
+    }
+}
+
+/* menu slide: item masuk bergantian */
+@media (max-width: 1100px) {
+
+    body.menu-open .drawer nav button,
+    body.menu-open .dbtn {
+        animation: geserKanan 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+        animation-delay: calc(var(--i, 0) * 45ms + 120ms);
+    }
+}
+
+/* toast: bilah waktu */
+.toast {
+    position: relative;
+    overflow: hidden;
+}
+
+.toast::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.55);
+    transform-origin: left;
+    animation: habis 3.2s linear forwards;
+}
+
+@keyframes habis {
+    to {
+        transform: scaleX(0);
+    }
+}
+
+/* gelembung chat melayang pelan */
+.bubble {
+    animation: muncul 0.4s cubic-bezier(0.2, 1.5, 0.4, 1), melayang 3.6s ease-in-out 0.6s infinite;
+}
+
+@keyframes melayang {
+    50% {
+        translate: 0 -5px;
+    }
+}
+
+/* bayangan header saat halaman digulir */
+.top {
+    transition: box-shadow 0.3s;
+}
+
+.top.scrolled {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+/* latar gelap modal sedikit buram */
+#modal,
+#confirm {
+    -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(5px);
+}
+
+/* tombol: terangkat saat disorot, riak saat disentuh */
+.btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+}
+
+.btn:active:not(:disabled) {
+    transform: scale(0.96);
+    box-shadow: none;
+}
+
+/* Elemen yang diberi efek riak WAJIB position: relative + overflow: hidden,
+   kalau tidak lingkaran riak muncul di pojok halaman (bukan di titik sentuh).
+   Daftar ini harus sama dengan selector di JS (bagian "9h. EFEK"). */
+.btn,
+nav button,
+.dbtn,
+.pager button,
+.kinds button,
+.tabs button,
+.drawer-x,
+.pitem,
+.back {
+    position: relative;
+    overflow: hidden;
+}
+
+.rip {
+    position: absolute;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.28;
+    pointer-events: none;
+    transform: scale(0);
+    animation: rip 0.6s ease-out forwards;
+}
+
+@keyframes rip {
+    to {
+        opacity: 0;
+        transform: scale(1);
+    }
+}
+
+
+/* ---------- 8s. POTATO MODE ---------- */
+html.potato *,
+html.potato *::before,
+html.potato *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+}
+
+html.potato .spinner {
+    animation: putaran 0.8s linear infinite !important;
+}
+
+html.potato #modal,
+html.potato #confirm {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+html.potato .card:hover,
+html.potato .btn:hover:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+}
+
+html.potato .card,
+html.potato .box,
+html.potato .chatw,
+html.potato .cbox,
+html.potato .toast,
+html.potato .top.scrolled {
+    box-shadow: none;
+}
+
+html.potato .rip,
+html.potato .nitem.holding::after,
+html.potato .toast::after {
+    display: none;
+}
+
+
+/* ---------- 8t. IKON SVG ---------- */
+.ic {
+    display: inline-block;
+    flex: none;
+    width: 1.15em;
+    height: 1.15em;
+    vertical-align: -0.2em;
+}
+
+.ic.fill {
+    fill: currentColor;
+}
+
+/* ikon di depan teks */
+.btn .ic,
+.tabs button .ic {
+    margin-right: 0.4em;
+}
+
+.dbtn .ic {
+    margin-right: 0.7rem;
+}
+
+
+.kinds button .ic {
+    margin: 0;
+}
+
+/* ikon tunggal di tombol bulat */
+.icon-btn .ic {
+    width: 1.2rem;
+    height: 1.2rem;
+    margin: 0;
+}
+
+.bubble .ic {
+    width: 1.6rem;
+    height: 1.6rem;
+}
+
+.attach .ic {
+    width: 1.35rem;
+    height: 1.35rem;
+}
+
+.back .ic {
+    width: 1.4rem;
+    height: 1.4rem;
+}
+
+/* penanda tempat kosong pada kartu & modal */
+.cover .ic {
+    width: 2.6rem;
+    height: 2.6rem;
+    color: var(--mut);
+    opacity: 0.5;
+}
+
+.slide .ic {
+    width: 4rem;
+    height: 4rem;
+    color: var(--mut);
+    opacity: 0.5;
+}
+
+.cicon .ic {
+    width: 1.7rem;
+    height: 1.7rem;
+}
+
+.nico .ic {
+    width: 1.3rem;
+    height: 1.3rem;
+    color: var(--pri2);
+}
+
+.facts span .ic {
+    width: 1.5rem;
+    height: 1.5rem;
+    color: var(--pri2);
+}
+
+.sec h3 .ic {
+    margin-right: 0.5rem;
+    color: var(--pri2);
+}
+
+.pin .ic {
+    width: 1.8rem;
+    height: 1.8rem;
+    color: var(--pri2);
+}
+
+.ci em .ic,
+.kmark .ic {
+    width: 1em;
+    height: 1em;
+    margin-right: 0.3em;
+    vertical-align: -0.15em;
+}
+
+.alertbar .ic {
+    margin-right: 0.2em;
+}
+
+.setting .ic {
+    margin-right: 0.3em;
+    color: var(--pri2);
+}
+
+.filebtn .ic {
+    width: 1.3rem;
+    height: 1.3rem;
+}
+
+
+/* ---------- 8u. SCROLLBAR KUSTOM (tanpa tombol panah bawaan) ---------- */
+/* Warna mengikuti tema aktif (ungu / gelap / terang). */
+:root {
+    --sb-thumb: rgba(127, 127, 160, 0.5);
+    --sb-track: transparent;
+}
+
+/* pembaca e-book berlatar hitam: batang scroll dibuat terang */
+.reader {
+    --sb-thumb: rgba(255, 255, 255, 0.35);
+}
+
+/* Chrome, Edge, Safari, Opera */
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--sb-track);
+}
+
+/* batang: bulat, tipis di tengah jalur (border transparan = jarak) */
+::-webkit-scrollbar-thumb {
+    min-width: 40px;
+    min-height: 40px;
+    border: 3px solid transparent;
+    border-radius: 99px;
+    background: var(--sb-thumb);
+    background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    border-width: 2px;
+    background: var(--pri2);
+    background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:active {
+    background: var(--pri);
+    background-clip: padding-box;
+}
+
+/* hilangkan tombol panah kiri/kanan/atas/bawah */
+::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* Firefox & browser lain yang belum mendukung ::-webkit-scrollbar */
+@supports not selector(::-webkit-scrollbar) {
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--sb-thumb) transparent;
+    }
+}
+
+
+/* ---------- 8v. KELOLA PEMINJAMAN (admin): daftar kompak ---------- */
+/* ruang bawah supaya tombol aksi tidak tertutup gelembung chat */
+.adm {
+    padding-bottom: 5rem;
+}
+
+.adm .bar {
+    margin-bottom: 0.4rem;
+}
+
+.acount {
+    margin-bottom: 0.6rem;
+}
+
+/* kartu statistik = tombol filter cepat */
+.stats2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 0.7rem;
+}
+
+.st {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, transform 0.15s;
+}
+
+.st:hover {
+    border-color: var(--pri2);
+}
+
+.st:active {
+    transform: scale(0.97);
+}
+
+.st b {
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.st span {
+    overflow: hidden;
+    color: var(--mut);
+    font-size: 0.78rem;
+    line-height: 1.15;
+}
+
+.st.warn b {
+    color: var(--ltd);
+}
+
+.st.bad b {
+    color: var(--bad);
+}
+
+.st.on {
+    border-color: var(--pri);
+    background: var(--soft);
+    box-shadow: inset 0 0 0 1px var(--pri);
+}
+
+/* daftar peminjaman: satu baris padat per peminjaman, tanpa geser samping */
+.alist {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.lrow {
+    display: grid;
+    grid-template-columns: 6rem minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.2fr) 10.5rem;
+    grid-template-areas: "code who book st act";
+    gap: 0.25rem 0.8rem;
+    align-items: center;
+    position: relative;
+    padding: 0.5rem 0.8rem;
+    overflow: hidden;
+    -webkit-touch-callout: none;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--card);
+    transition: border-color 0.2s;
+}
+
+.lrow:hover {
+    border-color: var(--pri2);
+}
+
+.lrow.overdue {
+    border-color: var(--bad);
+    box-shadow: inset 4px 0 0 var(--bad);
+}
+
+.lcode {
+    grid-area: code;
+    justify-self: start;
+    margin-left: -0.4rem;
+    padding: 0.15rem 0.4rem;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    cursor: copy;
+    transition: background 0.2s, color 0.2s;
+}
+
+.lcode:hover {
+    background: var(--soft);
+    color: var(--pri2);
+}
+
+/* judul kolom (hanya di layar lebar) */
+.lhead {
+    display: grid;
+    grid-template-columns: 6rem minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.2fr) 10.5rem;
+    gap: 0.8rem;
+    margin-bottom: 0.3rem;
+    padding: 0 calc(0.8rem + 1px);
+    color: var(--mut);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.lhead span:last-child {
+    text-align: right;
+}
+
+.ahow {
+    margin-bottom: 0.6rem;
+}
+
+/* baris Selesai bisa diklik; baris lain ditahan (garis merah tipis menandai progres tahan) */
+.lrow.done {
+    cursor: pointer;
+}
+
+.lrow.holding::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--bad);
+    transform-origin: left;
+    animation: tahan 0.7s linear forwards;
+}
+
+html.potato .lrow.holding::after {
+    display: none;
+}
+
+/* jendela kecil ubah status */
+.chgs {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.chg {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    width: 100%;
+    padding: 0.5rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.chg:hover {
+    border-color: var(--pri2);
+}
+
+.chg.on {
+    border-color: var(--pri);
+    background: var(--soft);
+    box-shadow: inset 0 0 0 1px var(--pri);
+}
+
+.chg small {
+    color: var(--mut);
+    font-size: 0.78rem;
+}
+
+.lwho {
+    grid-area: who;
+    min-width: 0;
+}
+
+.lwho b,
+.lbook {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lwho small,
+.lst small {
+    display: block;
+    color: var(--mut);
+    font-size: 0.74rem;
+    line-height: 1.3;
+}
+
+.lbook {
+    grid-area: book;
+    font-size: 0.88rem;
+}
+
+.lst {
+    grid-area: st;
+    min-width: 0;
+}
+
+.lact {
+    grid-area: act;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.3rem;
+}
+
+.alist .more {
+    justify-self: center;
+    margin-top: 0.4rem;
+}
+
+/* tablet: dua baris per peminjaman */
+@media (max-width: 900px) {
+    .lhead {
         display: none;
     }
 
-    .rd-btn.wide {
-        padding: 0;
-        min-width: 2.5rem;
+    .lrow {
+        grid-template-columns: 4.4rem minmax(0, 1fr) auto;
+        grid-template-areas: "code who st" "code book act";
     }
 
-    .rd-count {
-        min-width: 4.2rem;
-        font-size: 0.8rem;
+    .lst {
+        text-align: right;
     }
 }
 
-/* HP landscape: bilah dibuat tipis supaya halaman lebih lega */
-@media (max-height: 460px) {
-    .rd-btn {
-        min-width: 2.2rem;
-        height: 2.2rem;
+/* HP: kartu bertumpuk, tombol aksi selebar baris */
+@media (max-width: 560px) {
+    .lrow {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: "code st" "who who" "book book" "act act";
     }
 
-    .rd-scrub {
-        height: 2.2rem;
+    .lbook {
+        white-space: normal;
     }
 
-    .rd-top {
-        padding-top: calc(0.3rem + env(safe-area-inset-top, 0px));
-        padding-bottom: 0.3rem;
+    .lact {
+        justify-content: stretch;
     }
 
-    .rd-bot {
-        padding-top: 0.3rem;
+    .lact .btn {
+        flex: 1;
+        padding: 0.45rem 0.7rem;
+    }
+}
+
+
+/* ---------- 8w. GRAFIK KELOLA PEMINJAMAN ---------- */
+/* Semua animasi memakai CSS @keyframes, jadi Potato Mode (html.potato * { animation: none })
+   otomatis membuat grafik statis dan langsung tampil lengkap. */
+
+.charts {
+    margin-bottom: 0.6rem;
+}
+
+.chead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.6rem;
+    margin-bottom: 0.4rem;
+}
+
+.chead>b {
+    margin-right: auto;
+    font-size: 0.9rem;
+}
+
+.charts .tabs {
+    margin: 0;
+    padding: 0.15rem;
+    border-radius: 8px;
+}
+
+.charts .tabs button {
+    flex: none;
+    padding: 0.18rem 0.55rem;
+    border-radius: 6px;
+    font-size: 0.74rem;
+    white-space: nowrap;
+}
+
+.ctabs {
+    margin-bottom: 0.4rem !important;
+}
+
+.cgrid {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.cgrid.m1 {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+/* layar lebar: 3 grafik sebaris. Sedang: tren di atas, dua lainnya di bawahnya. HP: bertumpuk. */
+.cgrid.m3 {
+    grid-template-columns: minmax(0, 1.9fr) minmax(0, 1.1fr) minmax(0, 1.2fr);
+}
+
+@media (max-width: 1050px) {
+    .cgrid.m3 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .rd-v {
-        padding-top: 3.4rem;
+    .m3 .wide {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 640px) {
+    .cgrid.m3 {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* ringkasan angka */
+.ckpi {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-bottom: 0.4rem;
+}
+
+.ckpi div {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    padding: 0.1rem 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--mut);
+    font-size: 0.7rem;
+}
+
+.ckpi b {
+    color: var(--ink);
+    font-size: 0.82rem;
+}
+
+.m1 .cdonut {
+    justify-content: flex-start;
+}
+
+.m1 .cbars {
+    max-width: 640px;
+}
+
+.cc {
+    min-width: 0;
+    padding: 0.5rem 0.65rem 0.6rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--card);
+}
+
+.cct {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.1rem 0.5rem;
+    margin-bottom: 0.2rem;
+}
+
+.cct b {
+    font-size: 0.82rem;
+}
+
+.cct small {
+    color: var(--mut);
+    font-size: 0.7rem;
+}
+
+.cempty {
+    padding: 1rem 0;
+    text-align: center;
+}
+
+/* sembunyikan animasi saat isi grafik sama dengan sebelumnya */
+.cn * {
+    animation: none !important;
+}
+
+/* legenda garis (klik untuk menyembunyikan satu garis) */
+.cleg {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-bottom: 0.1rem;
+}
+
+.cleg button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.05rem 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: opacity 0.2s, border-color 0.2s;
+}
+
+.cleg button:hover {
+    border-color: var(--pri2);
+}
+
+.cleg button.off {
+    opacity: 0.45;
+    text-decoration: line-through;
+}
+
+.cleg i,
+.dleg i {
+    display: inline-block;
+    flex: none;
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 3px;
+}
+
+
+/* ----- grafik tren ----- */
+.ctrend {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.cgl {
+    stroke: var(--line);
+    stroke-width: 1;
+}
+
+.cax {
+    fill: var(--mut);
+    font-size: 11px;
+}
+
+.cline {
+    fill: none;
+    stroke-width: 2.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1;
+    animation: cdraw 1.1s cubic-bezier(0.3, 0.8, 0.3, 1);
+}
+
+@keyframes cdraw {
+    from {
+        stroke-dashoffset: 1;
+    }
+}
+
+.carea {
+    opacity: 0.14;
+    animation: cfade 1s ease-out 0.25s backwards;
+}
+
+@keyframes cfade {
+    from {
+        opacity: 0;
+    }
+}
+
+.hit {
+    fill: transparent;
+}
+
+.pt .cguide,
+.pt .cdot,
+.pt .ctip {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+}
+
+.cguide {
+    stroke: var(--mut);
+    stroke-dasharray: 3 3;
+}
+
+.cdot {
+    stroke: var(--card);
+    stroke-width: 2;
+}
+
+.pt:hover .cguide,
+.pt:hover .cdot,
+.pt:hover .ctip {
+    opacity: 1;
+}
+
+.ctip rect {
+    fill: var(--card);
+    stroke: var(--line);
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25));
+}
+
+.ctt {
+    fill: var(--ink);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.ctr {
+    fill: var(--mut);
+    font-size: 11px;
+}
+
+.ctn {
+    fill: var(--ink);
+    font-weight: 700;
+}
+
+
+/* ----- grafik donat ----- */
+.cdonut {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem 0.9rem;
+}
+
+.donut {
+    flex: none;
+    width: 104px;
+}
+
+.seg {
+    cursor: pointer;
+    transition: stroke-width 0.2s;
+    animation: cseg 1.1s cubic-bezier(0.3, 0.8, 0.3, 1) backwards;
+    animation-delay: calc(var(--i, 0) * 110ms);
+}
+
+@keyframes cseg {
+    from {
+        stroke-dasharray: 0 100;
+    }
+}
+
+.sg:hover .seg,
+.sg.on .seg {
+    stroke-width: 6.6;
+}
+
+.dtot,
+.dc {
+    fill: var(--ink);
+    font-size: 8px;
+    font-weight: 800;
+}
+
+.dlab,
+.dcl {
+    fill: var(--mut);
+    font-size: 2.7px;
+}
+
+.dtot,
+.dlab,
+.dc,
+.dcl {
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+.dc,
+.dcl {
+    opacity: 0;
+}
+
+.sg:hover .dc,
+.sg:hover .dcl {
+    opacity: 1;
+}
+
+.donut:has(.sg:hover) .dtot,
+.donut:has(.sg:hover) .dlab {
+    opacity: 0;
+}
+
+.dleg {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.dleg button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.1rem 0.4rem;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.74rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.dleg button b {
+    margin-left: auto;
+    padding-left: 0.5rem;
+}
+
+.dleg button:hover,
+.dleg button.on {
+    border-color: var(--pri2);
+    background: var(--soft);
+}
+
+
+/* ----- grafik batang ----- */
+.cbars {
+    display: grid;
+    gap: 0.1rem;
+}
+
+.cbar {
+    display: grid;
+    grid-template-columns: minmax(0, 6.5rem) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.15rem 0.35rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.74rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.cbar:hover,
+.cbar.on {
+    border-color: var(--pri2);
+    background: var(--soft);
+}
+
+.cbl {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cbt {
+    height: 0.45rem;
+    overflow: hidden;
+    border-radius: 99px;
+    background: var(--soft);
+}
+
+.cbar:hover .cbt,
+.cbar.on .cbt {
+    background: var(--card);
+}
+
+.cfill {
+    display: block;
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--pri), var(--pri2));
+    transform-origin: left;
+    animation: cgrow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+    animation-delay: calc(var(--i, 0) * 80ms);
+}
+
+@keyframes cgrow {
+    from {
+        transform: scaleX(0);
+    }
+}
+
+@media (max-width: 520px) {
+    .cbar {
+        grid-template-columns: minmax(0, 6rem) minmax(0, 1fr) auto;
+    }
+}
+
+
+/* ---------- 8x. ANIMASI HALAMAN PESAN ---------- */
+/* Potato Mode: aturan "html.potato *" di bagian 8s sudah mematikan semua animation & transition
+   di sini. prefers-reduced-motion juga sudah ditangani di bagian 9. */
+
+/* ----- baris daftar chat ----- */
+#plist .pitem {
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.25s, background 0.25s, box-shadow 0.25s;
+}
+
+/* penanda chat terpilih: garis di kiri yang tumbuh dari tengah */
+#plist .pitem::before {
+    content: '';
+    position: absolute;
+    top: 18%;
+    bottom: 18%;
+    left: 0;
+    width: 4px;
+    border-radius: 0 4px 4px 0;
+    background: var(--pri2);
+    transform: scaleY(0);
+    transition: transform 0.35s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+#plist .pitem.on::before {
+    transform: scaleY(1);
+}
+
+#plist .pitem .ava {
+    transition: transform 0.35s cubic-bezier(0.3, 1.6, 0.5, 1), box-shadow 0.3s;
+}
+
+#plist .pitem.on .ava {
+    box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--pri2);
+}
+
+/* chat yang belum dibaca: pratinjau lebih tegas */
+#plist .pitem.unread .pp {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+@media (hover: hover) {
+    #plist .pitem:hover {
+        border-color: var(--pri2);
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14);
+        transform: translateX(4px);
+    }
+
+    #plist .pitem:hover .ava {
+        transform: scale(1.1) rotate(-5deg);
+    }
+}
+
+#plist .pitem:active {
+    transform: scale(0.98);
+    box-shadow: none;
+}
+
+/* masuk pertama kali: bergantian dari kiri */
+#plist .pitem.pstag {
+    animation: pItemIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+    animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+@keyframes pItemIn {
+    from {
+        opacity: 0;
+        transform: translateX(-26px) scale(0.97);
+    }
+}
+
+/* chat baru muncul di daftar yang sudah ada */
+#plist .pitem.pnew {
+    animation: pItemNew 0.55s cubic-bezier(0.3, 1.4, 0.5, 1) backwards;
+}
+
+@keyframes pItemNew {
+    from {
+        opacity: 0;
+        transform: translateY(-14px) scale(0.93);
+    }
+}
+
+/* ada pesan baru di chat ini: baris berkilat sebentar */
+#plist .pitem.pflash {
+    animation: pFlash 0.9s ease-out;
+}
+
+@keyframes pFlash {
+    0% {
+        box-shadow: 0 0 0 3px var(--pri2);
+        transform: scale(1.025);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 transparent;
+        transform: none;
+    }
+}
+
+
+/* ----- isi percakapan ----- */
+/* gantikan animasi lama (.msg animation: masuk) di panel ini supaya tidak berulang tiap digambar ulang */
+#pmsgs .msg,
+#pmsgs .sys {
+    animation: none;
+}
+
+/* pesan baru / pindah chat: meluncur dari sisi pengirimnya */
+#pmsgs .msg.pin {
+    animation: pMsgThem 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.15) backwards;
+    animation-delay: var(--d, 0ms);
+    transform-origin: left bottom;
+}
+
+#pmsgs .msg.me.pin {
+    animation-name: pMsgMe;
+    transform-origin: right bottom;
+}
+
+#pmsgs .sys.pin {
+    animation: pSysIn 0.45s ease-out backwards;
+    animation-delay: var(--d, 0ms);
+}
+
+@keyframes pMsgThem {
+    from {
+        opacity: 0;
+        transform: translate(-18px, 12px) scale(0.9);
+    }
+}
+
+@keyframes pMsgMe {
+    from {
+        opacity: 0;
+        transform: translate(18px, 12px) scale(0.9);
+    }
+}
+
+@keyframes pSysIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+}
+
+/* jam & pengirim lebih jelas saat disorot */
+#pmsgs .msg small {
+    transition: opacity 0.2s;
+}
+
+#pmsgs .msg:hover small {
+    opacity: 1;
+}
+
+#pmsgs>.hint,
+#pmsgs .loadwrap {
+    animation: pFade 0.4s ease-out 0.1s backwards;
+}
+
+@keyframes pFade {
+    from {
+        opacity: 0;
+    }
+}
+
+
+/* ----- header chat ----- */
+.phead .ptitle.pswap {
+    animation: pHead 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.phead .btn.pswap {
+    animation: pPop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 0.1s backwards;
+}
+
+@keyframes pHead {
+    from {
+        opacity: 0;
+        transform: translateY(-9px);
+    }
+}
+
+@keyframes pPop {
+    from {
+        opacity: 0;
+        transform: scale(0.6);
+    }
+}
+
+/* tombol kembali (HP) */
+.back {
+    border-radius: 10px;
+    transition: background 0.2s, transform 0.15s;
+}
+
+.back .ic {
+    transition: transform 0.2s;
+}
+
+.back:hover {
+    background: var(--soft);
+}
+
+.back:hover .ic {
+    transform: translateX(-3px);
+}
+
+.back:active {
+    transform: scale(0.85);
+}
+
+
+/* ----- bar bawah: kolom ketik & "percakapan berakhir" ----- */
+/* muncul dari bawah saat berpindah ke chat berstatus lain (bar disembunyikan lewat atribut hidden) */
+#pf:not([hidden]),
+#pend:not([hidden]) {
+    animation: pBar 0.4s cubic-bezier(0.2, 0.9, 0.3, 1) backwards;
+}
+
+@keyframes pBar {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+}
+
+#pf input {
+    transition: border-color 0.2s, box-shadow 0.25s;
+}
+
+#pf input:focus {
+    box-shadow: 0 0 0 5px var(--soft);
+}
+
+/* kolom kosong saat Kirim ditekan */
+#pf input.shake {
+    border-color: var(--bad);
+    animation: pShake 0.4s;
+}
+
+@keyframes pShake {
+
+    20%,
+    60% {
+        transform: translateX(-6px);
+    }
+
+    40%,
+    80% {
+        transform: translateX(6px);
+    }
+}
+
+/* tombol Kirim berdenyut selama mengirim */
+#pf .btn.sending {
+    pointer-events: none;
+    animation: pSending 0.7s ease-in-out infinite;
+}
+
+@keyframes pSending {
+    50% {
+        opacity: 0.55;
+        transform: scale(0.94);
+    }
+}
+
+
+/* ----- HP: buka / tutup chat layar penuh ----- */
+@media (max-width: 700px) {
+
+    /* chat dibuka: panel geser masuk dari kanan */
+    .pesan.open.slide .ppanel {
+        animation: pSlideIn 0.36s cubic-bezier(0.2, 0.9, 0.3, 1);
+        box-shadow: -14px 0 30px rgba(0, 0, 0, 0.25);
+    }
+
+    /* chat ditutup: panel geser keluar ke kanan (class "closing" dipasang sebentar oleh closePesan) */
+    .pesan.open.closing .ppanel {
+        animation: pSlideOut 0.26s cubic-bezier(0.5, 0, 0.8, 0.4) forwards;
+        box-shadow: -14px 0 30px rgba(0, 0, 0, 0.25);
+    }
+
+    /* kembali ke daftar: daftar masuk lagi dari kiri */
+    .pesan.pback #plist {
+        animation: pListBack 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    /* di HP daftar tidak menandai chat terpilih */
+    #plist .pitem.on::before {
+        transform: scaleY(0);
+    }
+
+    #plist .pitem.on .ava {
+        box-shadow: none;
+    }
+}
+
+@keyframes pSlideIn {
+    from {
+        transform: translateX(100%);
+    }
+}
+
+@keyframes pSlideOut {
+    to {
+        opacity: 0.7;
+        transform: translateX(100%);
+    }
+}
+
+@keyframes pListBack {
+    from {
+        opacity: 0;
+        transform: translateX(-24px);
+    }
+}
+
+
+/* ---------- 8y. PERBAIKAN UKURAN TAB PESAN (autoscale / autofit) ---------- */
+/* Trik max-height besar: dikenali Chrome Android untuk melewati pembesaran teks otomatis. */
+.pesan,
+.pesan * {
+    max-height: 1000000px;
+}
+
+/* Ukuran dasar tetap (rem) supaya teks tidak "mewarisi" ukuran besar dari elemen lain. */
+.pesan {
+    font-size: 1rem;
+}
+
+#plist .pitem {
+    font-size: 0.95rem;
+}
+
+#plist .pr b {
+    font-size: 0.95rem;
+    line-height: 1.3;
+}
+
+#plist .pp {
+    font-size: 0.82rem;
+}
+
+.ptitle b {
+    display: block;
+    overflow: hidden;
+    font-size: 1rem;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ptitle small {
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+}
+
+#pmsgs .msg {
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+#pmsgs .sys {
+    max-width: 100%;
+    font-size: 0.75rem;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+/* Kolom ketik & tombol Kirim: selalu muat selebar panel */
+#pf {
+    min-width: 0;
+}
+
+#pf input {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+    font-size: 1rem;
+}
+
+#pf .btn {
+    flex: none;
+    font-size: 0.95rem;
+}
+
+/* Panel & header tidak boleh melebihi lebar layar */
+.pesan,
+.ppanel,
+.pwrap,
+#pmsgs,
+.phead,
+.ptitle {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.phead .btn {
+    flex: none;
+    font-size: 0.82rem;
+}
+
+/* Desktop: beri ruang di bawah supaya tombol "Akhiri percakapan" & kolom ketik
+   tidak tertutup gelembung chat Customer Service */
+@media (min-width: 701px) {
+    .pesan {
+        padding-bottom: 4.5rem;
+    }
+}
+
+/* HP: teks sedikit lebih ringkas agar judul panjang tidak memakan layar */
+@media (max-width: 520px) {
+    .ptitle b {
+        font-size: 0.95rem;
+    }
+
+    #pf input,
+    #pf .btn {
+        font-size: 0.95rem;
     }
 }
 
@@ -2639,5 +4733,921 @@ body.rd-open {
     * {
         animation: none !important;
         transition: none !important;
+    }
+}
+
+/* ---------- 8z. ANIMASI JENDELA INFORMASI (!) ---------- */
+/* TEMPEL di PALING BAWAH style.css (setelah semua blok lain, termasuk 9. LAIN-LAIN).
+   Potato Mode: aturan "html.potato *" di bagian 8s mematikan semua animation & transition di sini.
+   prefers-reduced-motion juga sudah ditangani di bagian 9. */
+
+
+/* ----- jendela: muncul & menutup ----- */
+/* menutup: turun sedikit dan mengecil, percepatan di awal (tanpa pantulan) */
+#modal .box.info {
+    transform: translateY(26px) scale(0.94);
+    transition: transform 0.28s cubic-bezier(0.5, 0, 0.75, 0.4);
+}
+
+/* terbuka: kembali ke posisi normal; kalau dibuka dari kondisi tertutup, animasi di bawah yang berjalan */
+#modal.open .box.info {
+    transform: none;
+    transition: transform 0.4s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+
+/* muncul: naik, membesar, memudar masuk */
+#modal .box.info {
+    animation: iBox 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.1) backwards;
+}
+
+@keyframes iBox {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.9);
+    }
+}
+
+.box.info h2 {
+    animation: iDrop 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) 0.08s backwards;
+}
+
+@keyframes iDrop {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+/* tombol X: berputar masuk, berputar saat disorot */
+.box.info .x {
+    animation: iX 0.5s cubic-bezier(0.3, 1.5, 0.5, 1) 0.25s backwards;
+    transition: transform 0.25s cubic-bezier(0.3, 1.5, 0.5, 1), background 0.2s;
+}
+
+@keyframes iX {
+    from {
+        opacity: 0;
+        transform: rotate(-90deg) scale(0.4);
+    }
+}
+
+.box.info .x:hover {
+    transform: rotate(90deg) scale(1.1);
+}
+
+.box.info .x:active {
+    transform: rotate(90deg) scale(0.88);
+}
+
+
+/* ----- tab ----- */
+.itabs {
+    position: relative;
+    scrollbar-width: none;
+}
+
+.itabs::-webkit-scrollbar {
+    display: none;
+}
+
+/* pil penanda tab aktif: meluncur antar tab */
+.itabs .islide {
+    position: absolute;
+    top: 0.25rem;
+    bottom: 0.25rem;
+    left: 0;
+    z-index: 0;
+    width: 0;
+    border-radius: 8px;
+    background: var(--pri);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+    transition: transform 0.4s cubic-bezier(0.3, 1.3, 0.5, 1), width 0.4s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+
+/* warna latar tab aktif diambil alih oleh pil */
+.itabs button {
+    z-index: 1;
+    transition: color 0.25s, transform 0.15s;
+}
+
+.itabs button.on {
+    background: transparent;
+    color: var(--onpri);
+}
+
+.itabs button:hover:not(.on) {
+    color: var(--pri2);
+}
+
+.itabs button:active {
+    transform: scale(0.94);
+}
+
+/* tab masuk bergantian saat jendela dibuka */
+.itabs button {
+    animation: iTab 0.45s cubic-bezier(0.3, 1.4, 0.5, 1) backwards;
+    animation-delay: calc(var(--i, 0) * 50ms + 150ms);
+}
+
+@keyframes iTab {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.9);
+    }
+}
+
+/* tag NEW!: menyusut halus saat Update Log dibuka */
+.itabs .newtag {
+    display: inline-block;
+    max-width: 4rem;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: max-width 0.3s ease, margin 0.3s ease, padding 0.3s ease, opacity 0.25s, transform 0.3s;
+}
+
+.itabs .newtag.gone {
+    max-width: 0;
+    margin-left: 0;
+    padding-right: 0;
+    padding-left: 0;
+    opacity: 0;
+    transform: scale(0.4);
+}
+
+
+/* ----- isi tab ----- */
+/* tinggi bergerak halus; overflow disembunyikan hanya selama bergerak */
+.ibody {
+    display: block;
+    transition: height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.ibody.sizing {
+    overflow: hidden;
+}
+
+.ipane {
+    display: grid;
+    gap: 0.6rem;
+}
+
+/* isi lama: memudar sambil bergeser menjauh */
+.ipane.out {
+    animation: iOut 0.15s ease-in forwards;
+    pointer-events: none;
+}
+
+@keyframes iOut {
+    to {
+        opacity: 0;
+        transform: translateX(calc(var(--dir, 1) * -18px));
+    }
+}
+
+/* isi baru: masuk dari sisi arah tab */
+.ipane.in {
+    animation: iIn 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+@keyframes iIn {
+    from {
+        opacity: 0;
+        transform: translateX(calc(var(--dir, 1) * 22px));
+    }
+}
+
+/* anak-anaknya naik bergantian */
+.ipane>* {
+    --k: 8;
+}
+
+.ipane>:nth-child(1) {
+    --k: 0;
+}
+
+.ipane>:nth-child(2) {
+    --k: 1;
+}
+
+.ipane>:nth-child(3) {
+    --k: 2;
+}
+
+.ipane>:nth-child(4) {
+    --k: 3;
+}
+
+.ipane>:nth-child(5) {
+    --k: 4;
+}
+
+.ipane>:nth-child(6) {
+    --k: 5;
+}
+
+.ipane>:nth-child(7) {
+    --k: 6;
+}
+
+.ipane>:nth-child(8) {
+    --k: 7;
+}
+
+.ipane.in>* {
+    animation: iChild 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+    animation-delay: calc(var(--k, 0) * 45ms + 60ms);
+}
+
+@keyframes iChild {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+}
+
+/* kartu riwayat / lokasi: bereaksi saat disorot */
+.ibody .commit,
+.ibody .lokasi {
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.25s, box-shadow 0.25s;
+}
+
+@media (hover: hover) {
+    .ibody .commit:hover {
+        border-color: var(--pri2);
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14);
+        transform: translateY(-2px);
+    }
+
+    .ibody .lokasi:hover {
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14);
+        transform: translateX(3px);
+    }
+}
+
+/* ---------- 8aa. MODE MAINTENANCE ---------- */
+/* TEMPEL di PALING BAWAH style.css (setelah semua blok lain).
+   Potato Mode: aturan "html.potato *" (bagian 8s) mematikan semua animation & transition di sini.
+   prefers-reduced-motion juga sudah ditangani di bagian 9. */
+
+
+/* ----- urutan lapisan: layar maintenance di atas semuanya,
+         tetapi dialog konfirmasi, spinner, dan toast tetap di atasnya
+         (admin perlu dialog 2x verifikasi; semua orang perlu melihat pesan error) ----- */
+.maint {
+    z-index: 60;
+}
+
+#confirm {
+    z-index: 70;
+}
+
+.busy {
+    z-index: 72;
+}
+
+#toasts {
+    z-index: 75;
+}
+
+body.maint-on {
+    overflow: hidden;
+}
+
+/* kotak centang "Mode Maintenance" di Pengaturan admin */
+.setting.danger {
+    border-color: var(--bad);
+    background: rgba(239, 68, 68, 0.07);
+}
+
+.setting.danger:hover {
+    border-color: var(--bad);
+}
+
+
+/* ----- layar penuh ----- */
+.maint {
+    --rx: 0deg;
+    --ry: 0deg;
+    --mx: 50%;
+    --my: 40%;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    place-items: center;
+    padding: 4.2rem 1.1rem 4.4rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: var(--bg);
+    color: var(--ink);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.5s ease, visibility 0.5s;
+}
+
+.maint.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+
+/* ----- latar: kisi cetak-biru bergerak, cahaya melayang, sorotan mengikuti kursor ----- */
+.mbg {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.mgrid {
+    position: absolute;
+    top: -50px;
+    right: -50px;
+    bottom: -50px;
+    left: -50px;
+    background-image:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 44px 44px;
+    opacity: 0.6;
+    -webkit-mask-image: radial-gradient(ellipse 72% 62% at 50% 46%, #000 18%, transparent 78%);
+    mask-image: radial-gradient(ellipse 72% 62% at 50% 46%, #000 18%, transparent 78%);
+    animation: mGrid 16s linear infinite;
+}
+
+@keyframes mGrid {
+    to {
+        transform: translate(44px, 44px);
+    }
+}
+
+.mglow {
+    position: absolute;
+    width: 46vmax;
+    height: 46vmax;
+    border-radius: 50%;
+    filter: blur(80px);
+}
+
+.mglow.g1 {
+    top: -14vmax;
+    left: -12vmax;
+    background: var(--pri2);
+    opacity: 0.32;
+    animation: mFloat 17s ease-in-out infinite alternate;
+}
+
+.mglow.g2 {
+    right: -16vmax;
+    bottom: -18vmax;
+    background: var(--stamp);
+    opacity: 0.16;
+    animation: mFloat 21s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes mFloat {
+    to {
+        transform: translate(6vmax, 5vmax) scale(1.15);
+    }
+}
+
+.mbg::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: radial-gradient(420px circle at var(--mx) var(--my), rgba(130, 130, 220, 0.13), transparent 62%);
+}
+
+
+/* ----- pita peringatan: teks berjalan di atas, garis serong bergerak di bawah ----- */
+.mband {
+    position: absolute;
+    left: -4%;
+    z-index: 1;
+    width: 108%;
+    overflow: hidden;
+    pointer-events: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.mband.top {
+    top: calc(1rem + env(safe-area-inset-top, 0px));
+    display: flex;
+    align-items: center;
+    height: 2.1rem;
+    background: var(--stamp);
+    color: #1a1400;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    transform: rotate(-1.3deg);
+}
+
+.mmq {
+    display: flex;
+    width: max-content;
+    animation: mScroll 30s linear infinite;
+}
+
+.mmq span {
+    flex: none;
+    white-space: pre;
+}
+
+@keyframes mScroll {
+    to {
+        transform: translateX(-50%);
+    }
+}
+
+.mband.bot {
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    height: 0.95rem;
+    background: repeating-linear-gradient(-45deg, var(--stamp) 0 14px, #17140a 14px 28px);
+    background-size: 39.6px 100%;
+    transform: rotate(1deg);
+    animation: mTape 1.1s linear infinite;
+}
+
+@keyframes mTape {
+    to {
+        background-position: 39.6px 0;
+    }
+}
+
+
+/* ----- kartu tengah ----- */
+.mtilt {
+    position: relative;
+    z-index: 2;
+    width: min(460px, 100%);
+    margin: auto;
+    transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry));
+    transition: transform 0.25s ease-out;
+}
+
+.mcard {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: 0.85rem;
+    padding: 1.5rem 1.4rem 1.2rem;
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    background: var(--card);
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.35);
+    text-align: center;
+    outline: 2px dashed var(--line);
+    outline-offset: -11px;
+}
+
+.mcard:focus {
+    outline: 2px dashed var(--line);
+}
+
+/* "sekrup" di empat sudut kartu */
+.mcard::before,
+.mcard::after {
+    content: '';
+    position: absolute;
+    top: 0.6rem;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--line);
+    box-shadow: 0 0 0 2px var(--card), inset 0 0 0 1px var(--mut);
+}
+
+.mcard::before {
+    left: 0.6rem;
+}
+
+.mcard::after {
+    right: 0.6rem;
+}
+
+/* masuk: kartu naik & membesar, isinya menyusul bergantian */
+.maint.show .mcard {
+    animation: mIn 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.1) backwards;
+}
+
+@keyframes mIn {
+    from {
+        opacity: 0;
+        transform: translateY(36px) scale(0.92);
+    }
+}
+
+.maint.show .mcard>* {
+    animation: mUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+    animation-delay: calc(var(--n, 0) * 70ms + 220ms);
+}
+
+@keyframes mUp {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+}
+
+
+/* ----- roda gigi ----- */
+.mgears {
+    width: min(210px, 70%);
+    height: auto;
+    margin-bottom: -0.2rem;
+    overflow: visible;
+}
+
+.gear {
+    animation: mSpin 22s linear infinite;
+}
+
+.gear.ga {
+    color: var(--pri2);
+}
+
+.gear.gb {
+    color: var(--mut);
+    animation-duration: 14s;
+    animation-direction: reverse;
+    animation-delay: -0.5s;
+}
+
+.gear.gc {
+    color: var(--stamp);
+    animation-duration: 9.5s;
+}
+
+@keyframes mSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+
+/* ----- teks ----- */
+.mbadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.2rem 0.85rem;
+    border-radius: 99px;
+    background: rgba(245, 179, 1, 0.16);
+    color: var(--ltd);
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+
+.led {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: currentColor;
+    animation: mLed 1.6s ease-out infinite;
+}
+
+@keyframes mLed {
+    0% {
+        box-shadow: 0 0 0 0 currentColor;
+    }
+
+    70%,
+    100% {
+        box-shadow: 0 0 0 0.55rem transparent;
+    }
+}
+
+.maint.checking .led {
+    animation-duration: 0.45s;
+}
+
+.mcard h2 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0 0.1rem;
+    font-size: clamp(1.5rem, 6vw, 2.05rem);
+    font-weight: 800;
+    line-height: 1.15;
+}
+
+/* judul berkilau pelan */
+.mcard h2 {
+    background: linear-gradient(90deg, var(--ink) 38%, var(--pri2) 50%, var(--ink) 62%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    background-size: 220% 100%;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: mShine 4s linear infinite;
+}
+
+/* judul memakai dua animasi sekaligus: naik masuk (sekali) + berkilau (terus-menerus) */
+.maint.show .mcard>h2 {
+    animation: mUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards, mShine 4s linear infinite;
+    animation-delay: calc(var(--n, 0) * 70ms + 220ms), 0s;
+}
+
+@keyframes mShine {
+    from {
+        background-position: 120% 0;
+    }
+
+    to {
+        background-position: -120% 0;
+    }
+}
+
+/* tiga titik berkedip bergantian */
+.dots {
+    display: inline-flex;
+    gap: 0.22rem;
+    margin-left: 0.3rem;
+    -webkit-text-fill-color: initial;
+}
+
+.dots i {
+    width: 0.32rem;
+    height: 0.32rem;
+    border-radius: 50%;
+    background: var(--pri2);
+    animation: mDot 1.2s ease-in-out infinite;
+}
+
+.dots i:nth-child(2) {
+    animation-delay: 0.18s;
+}
+
+.dots i:nth-child(3) {
+    animation-delay: 0.36s;
+}
+
+@keyframes mDot {
+
+    0%,
+    70%,
+    100% {
+        opacity: 0.25;
+        transform: translateY(0);
+    }
+
+    35% {
+        opacity: 1;
+        transform: translateY(-4px);
+    }
+}
+
+.mcard p {
+    max-width: 38ch;
+    color: var(--mut);
+    font-size: 0.95rem;
+}
+
+
+/* ----- bilah kemajuan tak tentu ----- */
+.mbar {
+    position: relative;
+    width: 100%;
+    height: 8px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: var(--soft);
+}
+
+.mbar i {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 38%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--pri), var(--pri2), var(--stamp));
+    animation: mBar 1.7s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+}
+
+.maint.checking .mbar i {
+    animation-duration: 0.7s;
+}
+
+@keyframes mBar {
+    from {
+        transform: translateX(-100%);
+    }
+
+    to {
+        transform: translateX(285%);
+    }
+}
+
+
+/* ----- chip status ----- */
+.mchips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0;
+    list-style: none;
+}
+
+.mchips li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    background: var(--soft);
+    font-size: 0.78rem;
+    font-weight: 600;
+    transition: transform 0.2s cubic-bezier(0.3, 1.6, 0.5, 1), border-color 0.2s;
+}
+
+.mchips li:hover {
+    border-color: var(--pri2);
+    transform: translateY(-2px) scale(1.04);
+}
+
+.mchips .ic {
+    color: var(--pri2);
+}
+
+
+/* ----- cek status ----- */
+.mcheck {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem 0.8rem;
+}
+
+.mcheck .hint {
+    min-width: 12.5rem;
+}
+
+.maint.checking #mcheckbtn .ic {
+    animation: mSpin 0.7s linear infinite;
+}
+
+#mzone {
+    width: 100%;
+}
+
+.mlink {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.7rem;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--mut);
+    font: inherit;
+    font-size: 0.78rem;
+    opacity: 0.65;
+    cursor: pointer;
+    transition: opacity 0.2s, color 0.2s;
+}
+
+.mlink:hover,
+.mlink:focus-visible {
+    color: var(--pri2);
+    opacity: 1;
+}
+
+.mlink .ic {
+    margin-right: 0.35em;
+}
+
+/* form login admin: terbuka dengan tinggi yang tumbuh halus */
+.mlogin {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.mlogin.open {
+    grid-template-rows: 1fr;
+}
+
+.mlogin>div {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.mlogin form {
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.5rem 0.2rem 0.2rem;
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 0.3s 0.1s, transform 0.3s 0.1s;
+}
+
+.mlogin.open form {
+    opacity: 1;
+    transform: none;
+}
+
+
+/* ----- tombol kecil admin (pojok kiri bawah): ikon saja, melebar saat disorot ----- */
+.mcorner {
+    position: absolute;
+    bottom: calc(2.9rem + env(safe-area-inset-bottom, 0px));
+    left: max(0.9rem, env(safe-area-inset-left, 0px));
+    z-index: 4;
+}
+
+.madmin {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.55rem;
+    border: 1px solid var(--stamp);
+    border-radius: 99px;
+    background: var(--card);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    transition: background 0.2s, color 0.2s, transform 0.2s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.madmin .ic {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin: 0;
+    color: var(--ltd);
+    transition: transform 0.4s cubic-bezier(0.3, 1.6, 0.5, 1), color 0.2s;
+}
+
+.madmin span {
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    white-space: nowrap;
+    transition: max-width 0.35s ease, opacity 0.25s, margin 0.35s;
+}
+
+.madmin:hover,
+.madmin:focus-visible {
+    padding-right: 0.95rem;
+    background: var(--stamp);
+    color: #1a1400;
+    transform: translateY(-2px);
+}
+
+.madmin:hover .ic,
+.madmin:focus-visible .ic {
+    color: #1a1400;
+    transform: rotate(-35deg);
+}
+
+.madmin:hover span,
+.madmin:focus-visible span {
+    max-width: 8rem;
+    margin-left: 0.5rem;
+    opacity: 1;
+}
+
+.madmin:active {
+    transform: scale(0.94);
+}
+
+.maint.show .madmin {
+    animation: mPop 0.6s cubic-bezier(0.3, 1.6, 0.5, 1) 1s backwards;
+}
+
+@keyframes mPop {
+    from {
+        opacity: 0;
+        transform: scale(0.3) rotate(-90deg);
+    }
+}
+
+
+/* ----- layar pendek (HP landscape) ----- */
+@media (max-height: 560px) {
+    .maint {
+        place-items: start center;
+        padding-top: 3.8rem;
+    }
+
+    .mgears {
+        width: 120px;
     }
 }
